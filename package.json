@@ -1,0 +1,11 @@
+{
+  "name": "resumebuilderapi-pdf-exporter",
+  "version": "1.0.0",
+  "description": "PDF Exporter for Resume Builder using Puppeteer",
+  "main": "pdf-generator.js",
+  "dependencies": {
+    "mongodb": "^7.2.0",
+    "pdf-parse": "^1.1.1",
+    "puppeteer": "^22.6.0"
+  }
+}
