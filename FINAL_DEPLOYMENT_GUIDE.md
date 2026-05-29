@@ -1,61 +1,67 @@
-# FINAL_DEPLOYMENT_GUIDE
+﻿# FINAL_DEPLOYMENT_GUIDE
 
 Date: 2026-05-30
 Scope: Release candidate deployment package only (no app logic changes)
 
 ## 1) Prepare Production Environment Variables
-1. Copy `.env.production.example` to `.env` on the server.
-2. Set production values for all placeholders.
-3. Ensure:
-   - `MONGO_URI` points to Atlas production cluster/database.
-   - `FRONTEND_URL` is the production frontend origin.
-   - `RAZORPAY_KEY_ID/SECRET` use sandbox for pre-prod verification, then live at cutover.
+1. Copy `.env.production.example` to `.env` on the deployment host.
+2. Replace all placeholders with production values.
+3. Set required backend variables:
+   - `MONGO_URI` (Atlas SRV URI)
+   - `JWT_SECRET`
+   - `FRONTEND_URL` (exact trusted frontend origin, comma-separated if multiple)
+   - `RAZORPAY_KEY_ID`
+   - `RAZORPAY_KEY_SECRET`
+   - `CLOUD_NAME`
+   - `CLOUD_KEY`
+   - `CLOUD_SECRET`
+   - mail username: `VRESIQ_MAIL_USERNAME` or `MAIL_USERNAME`
+   - mail password: `VRESIQ_MAIL_PASSWORD` or `MAIL_PASSWORD`
+4. Set optional variables as needed:
+   - `MAIL_FROM`
+   - `AI_API_KEY` and/or `GEMINI_API_KEY`
+   - `SEED_ADMIN_EMAIL`
+   - `SEED_ADMIN_PASSWORD`
 
 ## 2) Create MongoDB Atlas Production Database
-1. In Atlas, create a dedicated production project/cluster.
-2. Create dedicated DB user with least privilege on production DB only.
-3. Add deployment egress IP to Atlas network access list (or private endpoint).
-4. Create production DB (example: `vresiq_prod`).
-5. Put full Atlas SRV URI in `MONGO_URI`.
+1. Create a dedicated production project/cluster in Atlas.
+2. Create a least-privilege DB user for production DB only.
+3. Add deployment egress IP or private endpoint.
+4. Put full Atlas SRV URI in `MONGO_URI`.
 
-## 3) Configure Production Frontend URL
+## 3) Configure Production Frontend URL and CORS
 1. Set `FRONTEND_URL=https://app.vresiq.com` (or your exact production frontend origin).
-2. If multiple trusted origins are required, use comma-separated URLs.
+2. For multiple trusted origins, set comma-separated origins in `FRONTEND_URL`.
+3. Keep CORS restricted to trusted origins only (no wildcard).
+4. Validate preflight with `Origin: https://app.vresiq.com`.
 
-## 4) Configure Production CORS Origin
-1. Keep CORS restricted to exact trusted origins only.
-2. Do not use wildcard origins in production.
-3. Validate with preflight:
-   - `Origin: https://app.vresiq.com`
-   - Expect successful response headers.
+## 4) Razorpay Verification Before Live Cutover
+1. Use Razorpay test keys for pre-prod verification.
+2. Run purchase flow from frontend and verify backend endpoints:
+   - `POST /api/payment/create-order`
+   - `POST /api/payment/verify`
+3. Confirm payment is stored as `paid` and user plan upgrades.
+4. Switch to Razorpay live keys only at go-live.
 
-## 5) Razorpay Sandbox Checkout + Callback Verification (Required Before Go-Live)
-1. Login with a test account in frontend.
-2. Start premium purchase from pricing/payment page.
-3. Complete checkout using Razorpay sandbox test payment method.
-4. Verify backend callback path:
-   - `POST /api/payment/verify` returns success for valid signature.
-5. Confirm:
-   - payment record status becomes `paid`
-   - user plan upgrades to `premium`
-   - payment appears in history/admin views
-
-## 6) Deployment Steps (Backend RC Artifact)
-1. Artifact:
-   - `target/resumebuilderapi-0.0.1-SNAPSHOT.jar`
-2. Run:
-   - `java -jar resumebuilderapi-0.0.1-SNAPSHOT.jar`
+## 5) Backend Deployment Steps
+1. Build backend artifact:
+   - `./mvnw clean package -DskipTests`
+2. Run backend:
+   - `java -jar target/resumebuilderapi-0.0.1-SNAPSHOT.jar`
 3. Health check:
-   - `GET /actuator/health` => `{"status":"UP"}`
+   - `GET /actuator/health` returns `{"status":"UP"}`.
 
-## 7) Push Release Candidate to Git
-1. Ensure working tree includes intended RC files only.
-2. Commit with release message.
-3. Push to release branch or main as per policy.
+## 6) Frontend Deployment Requirements
+1. Set frontend env variables:
+   - `VITE_API_BASE_URL` (production backend URL)
+   - `VITE_RAZORPAY_KEY_ID` (matching environment key)
+   - `VITE_OPENROUTER_API_KEY`
+2. Deploy frontend and verify API calls target production backend.
 
-## Pre-Deploy Exit Criteria
-- Old backend instance stopped.
-- Remediated artifact built and checksummed.
-- Production env configured (`MONGO_URI`, `FRONTEND_URL`, CORS origins, Razorpay keys).
+## 7) Pre-Deploy Exit Criteria
+- Production env configured with runtime-correct variable names.
 - Atlas connectivity verified from deployment host.
-- Razorpay sandbox checkout + callback verified end-to-end.
+- CORS verified with production frontend origin.
+- Razorpay end-to-end verification completed.
+- Backend health endpoint is UP.
+- Frontend points to production API URL.
