@@ -20,6 +20,8 @@ import org.springframework.web.cors.CorsConfigurationSource;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Collectors;
 
 @Configuration
 @EnableWebSecurity
@@ -84,14 +86,32 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
 
+        List<String> exactOrigins;
+        List<String> originPatterns;
+
         if (frontendUrl != null && !frontendUrl.isBlank()) {
-            java.util.List<String> origins = Arrays.stream(frontendUrl.split(","))
+            List<String> configuredOrigins = Arrays.stream(frontendUrl.split(","))
                     .map(String::trim)
+                    .map(s -> s.endsWith("/") ? s.substring(0, s.length() - 1) : s)
                     .filter(s -> !s.isEmpty())
-                    .collect(java.util.stream.Collectors.toList());
-            configuration.setAllowedOrigins(origins);
+                    .collect(Collectors.toList());
+
+            exactOrigins = configuredOrigins.stream()
+                    .filter(s -> !s.contains("*"))
+                    .collect(Collectors.toList());
+            originPatterns = configuredOrigins.stream()
+                    .filter(s -> s.contains("*"))
+                    .collect(Collectors.toList());
         } else {
-            configuration.setAllowedOrigins(Arrays.asList("http://localhost:5173"));
+            exactOrigins = Arrays.asList("http://localhost:5173");
+            originPatterns = Arrays.asList();
+        }
+
+        if (!exactOrigins.isEmpty()) {
+            configuration.setAllowedOrigins(exactOrigins);
+        }
+        if (!originPatterns.isEmpty()) {
+            configuration.setAllowedOriginPatterns(originPatterns);
         }
 
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
