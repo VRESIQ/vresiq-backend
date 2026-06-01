@@ -1,6 +1,26 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 
+const resolveBrowserExecutable = () => {
+  const candidates = [
+    process.env.PUPPETEER_EXECUTABLE_PATH,
+    '/usr/bin/chromium',
+    '/usr/bin/chromium-browser',
+    '/usr/bin/google-chrome',
+    '/opt/google/chrome/chrome'
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    try {
+      fs.accessSync(candidate, fs.constants.X_OK);
+      return candidate;
+    } catch {
+      // continue
+    }
+  }
+  return null;
+};
+
 (async () => {
   const args = process.argv.slice(2);
   if (args.length < 2) {
@@ -14,8 +34,15 @@ const fs = require('fs');
   let browser;
   try {
     const htmlContent = fs.readFileSync(inputHtmlPath, 'utf8');
+    let resolvedExecutablePath = resolveBrowserExecutable();
+    if (!resolvedExecutablePath) {
+      // Prevent Puppeteer from reusing an invalid configured path.
+      delete process.env.PUPPETEER_EXECUTABLE_PATH;
+      resolvedExecutablePath = await puppeteer.executablePath();
+    }
 
     browser = await puppeteer.launch({
+      executablePath: resolvedExecutablePath,
       headless: 'new',
       args: [
         '--no-sandbox',
