@@ -17,7 +17,7 @@ COPY src src
 RUN chmod +x mvnw && ./mvnw clean package -DskipTests
 
 
-FROM eclipse-temurin:21-jre AS runtime
+FROM eclipse-temurin:21-jre-bookworm AS runtime
 WORKDIR /app
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
