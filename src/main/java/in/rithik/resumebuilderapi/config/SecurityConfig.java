@@ -32,8 +32,8 @@ public class SecurityConfig {
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final RateLimitingFilter rateLimitingFilter;
 
-    @org.springframework.beans.factory.annotation.Value("${app.frontend.url}")
-    private String frontendUrl;
+    @org.springframework.beans.factory.annotation.Value("${app.frontend.cors-origins}")
+    private String frontendCorsOrigins;
 
 
     @Bean
@@ -89,8 +89,8 @@ public class SecurityConfig {
         List<String> exactOrigins;
         List<String> originPatterns;
 
-        if (frontendUrl != null && !frontendUrl.isBlank()) {
-            List<String> configuredOrigins = Arrays.stream(frontendUrl.split(","))
+        if (frontendCorsOrigins != null && !frontendCorsOrigins.isBlank()) {
+            List<String> configuredOrigins = Arrays.stream(frontendCorsOrigins.split(","))
                     .map(String::trim)
                     .map(s -> s.endsWith("/") ? s.substring(0, s.length() - 1) : s)
                     .filter(s -> !s.isEmpty())

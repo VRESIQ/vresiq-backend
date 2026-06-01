@@ -15,6 +15,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
+import java.net.URI;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -33,8 +34,8 @@ public class AuthService {
     private final EmailService emailService;
     private final JwtUtil jwtUtil;
 
-    @Value("${app.frontend.url}")
-    private String frontendUrl;
+    @Value("${app.frontend.public-url}")
+    private String frontendPublicUrl;
 
     public AuthResponse register(RegisterRequest request) {
         String email = request.getEmail().toLowerCase().trim();
@@ -52,7 +53,7 @@ public class AuthService {
 
     private void sendVerificationEmail(User user) {
         try {
-            String verifyLink = frontendUrl + "/verify-email?token=" + user.getVerificationToken() + "&email=" + user.getEmail();
+            String verifyLink = resolveFrontendPublicBaseUrl() + "/verify-email?token=" + user.getVerificationToken() + "&email=" + user.getEmail();
             String html =
                     "<div style=\"font-family:sans-serif;\">" +
                             "<h2>Verify your email</h2>" +
@@ -71,6 +72,36 @@ public class AuthService {
             log.error("Failed to send verification email to {}: {}", user.getEmail(), e.getMessage());
             throw new RuntimeException("Failed to send verification email: " + e.getMessage());
         }
+    }
+
+    private String resolveFrontendPublicBaseUrl() {
+        if (frontendPublicUrl == null || frontendPublicUrl.isBlank()) {
+            throw new IllegalStateException("FRONTEND_PUBLIC_URL is not configured.");
+        }
+
+        for (String candidateRaw : frontendPublicUrl.split(",")) {
+            String candidate = candidateRaw == null ? "" : candidateRaw.trim();
+            if (candidate.isEmpty()) continue;
+            if (candidate.endsWith("/")) candidate = candidate.substring(0, candidate.length() - 1);
+
+            // Wildcard origins are valid for CORS patterns, but invalid for user-facing links.
+            String lower = candidate.toLowerCase();
+            if (lower.contains("*") || lower.contains("%2a")) continue;
+
+            try {
+                URI uri = URI.create(candidate);
+                String scheme = uri.getScheme();
+                String host = uri.getHost();
+                if (host != null && !host.isBlank() &&
+                        ("http".equalsIgnoreCase(scheme) || "https".equalsIgnoreCase(scheme))) {
+                    return candidate;
+                }
+            } catch (Exception ignored) {
+                // try the next configured candidate
+            }
+        }
+
+        throw new IllegalStateException("Invalid FRONTEND_PUBLIC_URL. Provide an exact origin like https://vresiq-frontend.vercel.app");
     }
 
     public String verifyEmail(String token, String email) {
