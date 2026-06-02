@@ -63,6 +63,12 @@ public class EmailService {
 
     public void sendEmailWithAttachment(String to, String subject, String body, byte[] attachment, String filename) throws MessagingException {
         log.info("Preparing to send email with attachment to: {}, subject: {}, from: {}, filename: {}", to, subject, fromEmail, filename);
+        
+        if (brevoApiKey != null && !brevoApiKey.isBlank()) {
+            sendEmailWithAttachmentViaBrevoApi(to, subject, body, attachment, filename);
+            return;
+        }
+
         try {
             MimeMessage message = mailSender.createMimeMessage();
             MimeMessageHelper helper = new MimeMessageHelper(message, true);
@@ -81,6 +87,46 @@ public class EmailService {
         } catch (Exception e) {
             log.error("Unexpected exception occurred while sending email with attachment to {}: ", to, e);
             throw new RuntimeException("Unexpected error during email transmission: " + e.getMessage(), e);
+        }
+    }
+
+    private void sendEmailWithAttachmentViaBrevoApi(String to, String subject, String body, byte[] attachment, String filename) {
+        try {
+            String base64Content = java.util.Base64.getEncoder().encodeToString(attachment);
+            
+            // Format email body as simple HTML or plain text
+            String htmlContent = "<p>" + jsonEscape(body).replace("\n", "<br>") + "</p>";
+
+            String payload = "{"
+                    + "\"sender\":{\"email\":\"" + jsonEscape(fromEmail) + "\"},"
+                    + "\"to\":[{\"email\":\"" + jsonEscape(to) + "\"}],"
+                    + "\"subject\":\"" + jsonEscape(subject) + "\","
+                    + "\"htmlContent\":\"" + htmlContent + "\","
+                    + "\"attachment\":[{"
+                    + "\"content\":\"" + base64Content + "\","
+                    + "\"name\":\"" + jsonEscape(filename) + "\""
+                    + "}]"
+                    + "}";
+
+            HttpRequest request = HttpRequest.newBuilder()
+                    .uri(URI.create("https://api.brevo.com/v3/smtp/email"))
+                    .timeout(Duration.ofSeconds(20))
+                    .header("accept", "application/json")
+                    .header("content-type", "application/json")
+                    .header("api-key", brevoApiKey)
+                    .POST(HttpRequest.BodyPublishers.ofString(payload))
+                    .build();
+
+            HttpResponse<String> response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
+            int status = response.statusCode();
+            if (status < 200 || status >= 300) {
+                throw new RuntimeException("Brevo API send failed with status " + status + ": " + response.body());
+            }
+
+            log.info("Email with attachment sent successfully to {} via Brevo API", to);
+        } catch (Exception e) {
+            log.error("Brevo API send with attachment failed for {}: {}", to, e.getMessage(), e);
+            throw new RuntimeException("Email delivery with attachment failed via Brevo API: " + e.getMessage(), e);
         }
     }
 
