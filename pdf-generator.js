@@ -88,13 +88,6 @@ const resolveBrowserExecutable = async () => {
       path: outputPdfPath,
       format: 'letter',
       printBackground: true,
-      displayHeaderFooter: true,
-      headerTemplate: '<span></span>',
-      footerTemplate: `
-        <div style="width: 100%; text-align: center; font-size: 13px; font-family: 'Inter', Arial, sans-serif; font-weight: 700; color: rgba(15, 23, 42, 0.08); padding-bottom: 16px; -webkit-print-color-adjust: exact;">
-          Made with VRESIQ
-        </div>
-      `,
       margin: {
         top: '40px',
         bottom: '48px',
