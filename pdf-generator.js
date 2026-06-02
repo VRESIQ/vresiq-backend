@@ -89,8 +89,8 @@ const resolveBrowserExecutable = async () => {
       format: 'letter',
       printBackground: true,
       margin: {
-        top: '40px',
-        bottom: '48px',
+        top: '0px',
+        bottom: '0px',
         left: '0px',
         right: '0px'
       }
