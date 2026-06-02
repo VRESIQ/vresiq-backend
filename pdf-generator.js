@@ -1,24 +1,30 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
 
-const resolveBrowserExecutable = () => {
-  const candidates = [
-    process.env.PUPPETEER_EXECUTABLE_PATH,
-    '/usr/bin/chromium',
-    '/usr/bin/chromium-browser',
-    '/usr/bin/google-chrome',
-    '/opt/google/chrome/chrome'
-  ].filter(Boolean);
+const resolveBrowserExecutable = async () => {
+  const configuredExecutablePath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
 
-  for (const candidate of candidates) {
+  if (configuredExecutablePath) {
     try {
-      fs.accessSync(candidate, fs.constants.X_OK);
-      return candidate;
+      fs.accessSync(configuredExecutablePath, fs.constants.X_OK);
+      console.warn(`Using PUPPETEER_EXECUTABLE_PATH override: ${configuredExecutablePath}`);
+      return configuredExecutablePath;
     } catch {
-      // continue
+      console.warn(`Ignoring non-executable PUPPETEER_EXECUTABLE_PATH override: ${configuredExecutablePath}`);
     }
   }
-  return null;
+
+  const previousExecutablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
+  try {
+    delete process.env.PUPPETEER_EXECUTABLE_PATH;
+    const cacheExecutablePath = await puppeteer.executablePath();
+    console.info(`Resolved Puppeteer browser from cache: ${cacheExecutablePath}`);
+    return cacheExecutablePath;
+  } finally {
+    if (previousExecutablePath !== undefined) {
+      process.env.PUPPETEER_EXECUTABLE_PATH = previousExecutablePath;
+    }
+  }
 };
 
 (async () => {
@@ -34,12 +40,7 @@ const resolveBrowserExecutable = () => {
   let browser;
   try {
     const htmlContent = fs.readFileSync(inputHtmlPath, 'utf8');
-    let resolvedExecutablePath = resolveBrowserExecutable();
-    if (!resolvedExecutablePath) {
-      // Prevent Puppeteer from reusing an invalid configured path.
-      delete process.env.PUPPETEER_EXECUTABLE_PATH;
-      resolvedExecutablePath = await puppeteer.executablePath();
-    }
+    const resolvedExecutablePath = await resolveBrowserExecutable();
 
     browser = await puppeteer.launch({
       executablePath: resolvedExecutablePath,
