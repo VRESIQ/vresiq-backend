@@ -23,7 +23,7 @@ public class EmailService {
     @Value("${spring.mail.properties.mail.smtp.from}")
     private String fromEmail;
 
-    @Value("${BREVO_API_KEY:}")
+    @Value("${BREVO_API_KEY:${VRESIQ_MAIL_PASSWORD:${MAIL_PASSWORD:}}}")
     private String brevoApiKey;
 
     private final JavaMailSender mailSender;
