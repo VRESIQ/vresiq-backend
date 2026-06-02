@@ -97,10 +97,9 @@ const ALL_GOOGLE_FONTS = `https://fonts.googleapis.com/css2?family=Inter:wght@30
 const BASE_PRINT_CSS = (borderStyle = 'none') => `
 html, body {
   background: #ffffff !important; color: #000000 !important;
-  margin: 0 !important; padding: 0 !important; overflow: hidden !important;
+  margin: 0 !important; padding: 0 !important; overflow: visible !important;
 }
-@page { size: letter; margin-top: 40px !important; margin-bottom: 40px !important; margin-left: 0 !important; margin-right: 0 !important; }
-@page :first { margin-top: 0 !important; }
+@page { size: letter; margin-top: 40px !important; margin-bottom: 48px !important; margin-left: 0 !important; margin-right: 0 !important; }
 #resume-preview, .resume-preview {
   position: static !important; display: block !important;
   width: 816px !important; max-width: 816px !important; height: auto !important;

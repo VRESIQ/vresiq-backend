@@ -28,18 +28,15 @@ const generateHtml = (tc) => `
       color: #000000 !important;
       margin: 0 !important;
       padding: 0 !important;
+      overflow: visible !important;
     }
     
     @page {
       size: letter;
       margin-top: 40px !important;
-      margin-bottom: 40px !important;
+      margin-bottom: 48px !important;
       margin-left: 0 !important;
       margin-right: 0 !important;
-    }
-    
-    @page :first {
-      margin-top: 0 !important;
     }
 
     #resume-preview, .resume-preview {
