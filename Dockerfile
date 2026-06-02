@@ -25,9 +25,9 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     npm \
     ca-certificates \
     fonts-liberation \
-    libasound2 \
-    libatk-bridge2.0-0 \
-    libatk1.0-0 \
+    libasound2t64 \
+    libatk-bridge2.0-0t64 \
+    libatk1.0-0t64 \
     libc6 \
     libcairo2 \
     libcups2 \
@@ -36,8 +36,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libfontconfig1 \
     libgbm1 \
     libgcc-s1 \
-    libglib2.0-0 \
-    libgtk-3-0 \
+    libglib2.0-0t64 \
+    libgtk-3-0t64 \
     libnspr4 \
     libnss3 \
     libpango-1.0-0 \
