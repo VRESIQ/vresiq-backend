@@ -3,7 +3,7 @@ const path = require('path');
 const puppeteer = require('puppeteer');
 const pdfParse = require('pdf-parse');
 
-const cssPath = 'c:\\Users\\ACER\\Desktop\\PROJECTS\\ResumeBuilder\\resume-builder-frontend\\src\\components\\ResumePreview.css';
+const cssPath = 'c:\\Users\\ACER\\Documents\\GitHub\\vresiq-frontend\\src\\components\\ResumePreview.css';
 const cssContent = fs.readFileSync(cssPath, 'utf8');
 
 const htmlContent = `

@@ -4,7 +4,7 @@ const puppeteer = require('puppeteer');
 const pdfParse = require('pdf-parse');
 
 // Load base CSS styles from frontend ResumePreview.css to mimic live layout styles
-const cssPath = path.join(__dirname, '..', 'resume-builder-frontend', 'src', 'components', 'ResumePreview.css');
+const cssPath = path.join(__dirname, '..', 'vresiq-frontend', 'src', 'components', 'ResumePreview.css');
 let cssContent = '';
 try {
   cssContent = fs.readFileSync(cssPath, 'utf8');

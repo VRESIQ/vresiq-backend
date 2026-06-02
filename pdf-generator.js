@@ -87,7 +87,13 @@ const resolveBrowserExecutable = async () => {
     await page.pdf({
       path: outputPdfPath,
       format: 'letter',
-      printBackground: true
+      printBackground: true,
+      margin: {
+        top: '0px',
+        bottom: '0px',
+        left: '0px',
+        right: '0px'
+      }
     });
 
     console.log('PDF generated successfully');
