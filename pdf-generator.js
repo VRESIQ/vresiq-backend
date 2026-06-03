@@ -88,6 +88,7 @@ const resolveBrowserExecutable = async () => {
       path: outputPdfPath,
       format: 'letter',
       printBackground: true,
+      preferCSSPageSize: true,
       margin: {
         top: '0px',
         bottom: '0px',
