@@ -10,6 +10,7 @@ public interface UserRepository extends MongoRepository<User,String> {
     Optional<User> findByEmail(String email);
     Boolean existsByEmail(String email);
     Optional<User> findByVerificationToken(String VerificationToken);
+    Optional<User> findByPasswordResetToken(String passwordResetToken);
     long countBySubscriptionPlan(String subscriptionPlan);
     java.util.List<User> findAllByOrderByCreatedAtDesc();
 

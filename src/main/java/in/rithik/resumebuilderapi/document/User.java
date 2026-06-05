@@ -32,6 +32,10 @@ public class User {
     private String verificationToken;
     private LocalDateTime verificationExpires;
     private LocalDateTime lastVerificationSent;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private String passwordResetToken;
+    private LocalDateTime passwordResetExpires;
+    private LocalDateTime lastPasswordResetRequest;
 
     @lombok.Builder.Default
     private String role = "USER";

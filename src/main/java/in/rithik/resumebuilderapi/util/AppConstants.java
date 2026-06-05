@@ -9,6 +9,8 @@ public class AppConstants {
     public static final String REFRESH = "/refresh";
     public static final String LOGOUT = "/logout";
     public static final String RESEND_VERIFICATION = "/resend-verification";
+    public static final String FORGOT_PASSWORD = "/forgot-password";
+    public static final String RESET_PASSWORD = "/reset-password";
     public static final String PROFILE = "/profile";
     public static final String RESUME = "/api/resumes";
     public static final String ID = "/{id}";

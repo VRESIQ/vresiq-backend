@@ -102,6 +102,39 @@ public class AuthController {
         //Step4: return response
         return ResponseEntity.ok(Map.of("success", "true", "message", "Verification email sent"));
     }
+
+    @PostMapping(FORGOT_PASSWORD)
+    public ResponseEntity<?> forgotPassword(@RequestBody Map<String, String> body) {
+        String email = body.get("email");
+        if (Objects.isNull(email) || email.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Email is required"));
+        }
+        try {
+            authService.forgotPassword(email);
+            return ResponseEntity.ok(Map.of("success", "true", "message", "Password reset link sent to your email."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
+    @PostMapping(RESET_PASSWORD)
+    public ResponseEntity<?> resetPassword(@RequestBody Map<String, String> body) {
+        String token = body.get("token");
+        String password = body.get("password");
+        if (Objects.isNull(token) || token.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "Reset token is required"));
+        }
+        if (Objects.isNull(password) || password.trim().isEmpty()) {
+            return ResponseEntity.badRequest().body(Map.of("message", "New password is required"));
+        }
+        try {
+            authService.resetPassword(token, password);
+            return ResponseEntity.ok(Map.of("success", "true", "message", "Password has been reset successfully. Please log in with your new password."));
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body(Map.of("message", e.getMessage()));
+        }
+    }
+
     @GetMapping(PROFILE)
     public ResponseEntity<?> getProfile(Authentication authentication){
         Object principalObject = authentication.getPrincipal();

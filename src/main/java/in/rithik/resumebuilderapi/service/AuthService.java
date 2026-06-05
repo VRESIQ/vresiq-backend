@@ -212,6 +212,88 @@ public class AuthService {
         sendVerificationEmail(user);
     }
 
+    private String hashSha256(String base) {
+        try {
+            java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+            byte[] hash = digest.digest(base.getBytes("UTF-8"));
+            StringBuilder hexString = new StringBuilder();
+            for (byte b : hash) {
+                String hex = Integer.toHexString(0xff & b);
+                if (hex.length() == 1) hexString.append('0');
+                hexString.append(hex);
+            }
+            return hexString.toString();
+        } catch (Exception ex) {
+            throw new RuntimeException("Hashing failed: " + ex.getMessage(), ex);
+        }
+    }
+
+    public void forgotPassword(String email) {
+        String normalizedEmail = email.toLowerCase().trim();
+        User user = userRepository.findByEmail(normalizedEmail)
+                .orElseThrow(() -> new RuntimeException("No account found with that email"));
+
+        if (user.getLastPasswordResetRequest() != null &&
+                user.getLastPasswordResetRequest().plusSeconds(60).isAfter(LocalDateTime.now())) {
+            long secondsLeft = Duration.between(LocalDateTime.now(), user.getLastPasswordResetRequest().plusSeconds(60)).toSeconds();
+            throw new RuntimeException("Please wait " + (secondsLeft > 0 ? secondsLeft : 60) + " seconds before requesting another password reset.");
+        }
+
+        String rawToken = UUID.randomUUID().toString();
+        String hashedToken = hashSha256(rawToken);
+
+        user.setPasswordResetToken(hashedToken);
+        user.setPasswordResetExpires(LocalDateTime.now().plusHours(1));
+        user.setLastPasswordResetRequest(LocalDateTime.now());
+        userRepository.save(user);
+        
+        sendForgotPasswordEmail(user, rawToken);
+    }
+
+    private void sendForgotPasswordEmail(User user, String rawToken) {
+        try {
+            String resetLink = resolveFrontendPublicBaseUrl() + "/reset-password?token=" + rawToken;
+            String html =
+                    "<div style=\"font-family:sans-serif;\">" +
+                            "<h2>Reset your password</h2>" +
+                            "<p>Hi " + user.getName() + ", you requested a password reset for your VRESIQ account.</p>" +
+                            "<p>Please click the button below to set a new password:</p>" +
+                            "<p>" +
+                            "<a href=\"" + resetLink + "\" " +
+                            "style=\"display:inline-block;padding:10px 16px;background:#6366f1;color:#fff;border-radius:6px;text-decoration:none;\">" +
+                            "Reset Password</a>" +
+                            "</p>" +
+                            "<p>Or paste this link in your browser: " + resetLink + "</p>" +
+                            "<p>This link expires in 1 hour.</p>" +
+                            "<p>If you did not request this, you can safely ignore this email.</p>" +
+                            "</div>";
+
+            emailService.sendHtmlEmail(user.getEmail(), "Reset your VRESIQ password", html);
+        } catch (Exception e) {
+            log.error("Failed to send password reset email to {}: {}", user.getEmail(), e.getMessage());
+            throw new RuntimeException("Failed to send password reset email: " + e.getMessage());
+        }
+    }
+
+    public void resetPassword(String token, String newPassword) {
+        if (token == null || token.isBlank()) {
+            throw new RuntimeException("Reset token is required.");
+        }
+        String hashedToken = hashSha256(token);
+        User user = userRepository.findByPasswordResetToken(hashedToken)
+                .orElseThrow(() -> new RuntimeException("Invalid or expired reset token."));
+
+        if (user.getPasswordResetExpires() == null || user.getPasswordResetExpires().isBefore(LocalDateTime.now())) {
+            throw new RuntimeException("Reset token has expired.");
+        }
+
+        user.setPassword(passwordEncoder.encode(newPassword));
+        user.setPasswordResetToken(null);
+        user.setPasswordResetExpires(null);
+        clearRefreshToken(user);
+        userRepository.save(user);
+    }
+
     public AuthResponse getProfile(Object principalObject) {
         User user = (User) principalObject;
         return toResponse(user);
