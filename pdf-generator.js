@@ -97,6 +97,30 @@ const resolveBrowserExecutable = async () => {
       }
     });
 
+    // URGENT: Apply standardized PDF document metadata
+    try {
+      const { PDFDocument } = require('pdf-lib');
+      const pdfBytes = fs.readFileSync(outputPdfPath);
+      const pdfDoc = await PDFDocument.load(pdfBytes, { updateMetadata: false });
+      
+      const now = new Date();
+      pdfDoc.setTitle('Resume');
+      pdfDoc.setAuthor('VRESIQ');
+      pdfDoc.setSubject('Professional Resume');
+      pdfDoc.setCreator('VRESIQ');
+      pdfDoc.setProducer('VRESIQ');
+      pdfDoc.setKeywords(['Resume', 'CV', 'ATS']);
+      pdfDoc.setCreationDate(now);
+      pdfDoc.setModificationDate(now);
+
+      // Save without incremental updates to prevent post-generation metadata changes (revision count remains zero)
+      const modifiedPdfBytes = await pdfDoc.save();
+      fs.writeFileSync(outputPdfPath, modifiedPdfBytes);
+      console.log('PDF metadata standardized successfully via pdf-lib');
+    } catch (metaErr) {
+      console.error('Warning: Failed to set PDF metadata:', metaErr);
+    }
+
     console.log('PDF generated successfully');
     process.exit(0);
   } catch (err) {
