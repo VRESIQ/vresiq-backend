@@ -2,8 +2,8 @@ name: Backend Keep-Warm
 
 on:
   schedule:
-    - cron: '*/12 * * * *' # Run every 12 minutes
-  workflow_dispatch: # Allow manual trigger from GitHub UI
+    - cron: '*/12 * * * *'
+  workflow_dispatch: {}
 
 jobs:
   ping-backend:
