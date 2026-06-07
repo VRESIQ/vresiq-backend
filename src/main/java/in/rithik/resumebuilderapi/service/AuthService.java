@@ -6,6 +6,9 @@ import in.rithik.resumebuilderapi.dto.LoginRequest;
 import in.rithik.resumebuilderapi.dto.RegisterRequest;
 import in.rithik.resumebuilderapi.exception.ResourceExistsException;
 import in.rithik.resumebuilderapi.repository.UserRepository;
+import in.rithik.resumebuilderapi.repository.ResumeRepository;
+import in.rithik.resumebuilderapi.repository.PaymentRepository;
+import in.rithik.resumebuilderapi.repository.UserAiStatsRepository;
 import in.rithik.resumebuilderapi.util.JwtUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -24,12 +27,30 @@ import java.util.HexFormat;
 import java.util.Map;
 import java.util.UUID;
 
+/*
+Purpose:
+Coordinates registration, login, profile updates, and cascading account deletion.
+
+Used By:
+AuthController.java
+
+Request Flow:
+AuthController -> AuthService -> Repositories -> MongoDB Atlas
+
+Learn:
+- Business Logic Layer
+- Password Hashing (BCrypt)
+- JWT Token Issuance & Refresh Logic
+*/
 @Service
 @RequiredArgsConstructor
 @Slf4j
 public class AuthService {
 
     private final UserRepository userRepository;
+    private final ResumeRepository resumeRepository;
+    private final PaymentRepository paymentRepository;
+    private final UserAiStatsRepository statsRepository;
     private final PasswordEncoder passwordEncoder;
     private final EmailService emailService;
     private final JwtUtil jwtUtil;
@@ -315,6 +336,20 @@ public class AuthService {
 
         userRepository.save(user);
         return toResponse(user);
+    }
+
+    public void deleteProfile(Object principalObject) {
+        User user = (User) principalObject;
+        String userId = user.getId();
+        log.info("Self-serve account deletion requested for user: {}", user.getEmail());
+
+        // Cascade delete all associated documents
+        resumeRepository.deleteByUserId(userId);
+        paymentRepository.deleteByUserId(userId);
+        statsRepository.deleteByUserId(userId);
+        userRepository.deleteById(userId);
+
+        log.info("User {} successfully deleted their account self-serve.", user.getEmail());
     }
 
     private AuthResponse toResponse(User user) {

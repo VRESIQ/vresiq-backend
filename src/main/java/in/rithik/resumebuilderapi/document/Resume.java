@@ -20,6 +20,9 @@ import java.util.List;
 @NoArgsConstructor
 @Builder
 @Document(collection = "resumes")
+@org.springframework.data.mongodb.core.index.CompoundIndexes({
+    @org.springframework.data.mongodb.core.index.CompoundIndex(name = "user_id_updated_at", def = "{'userId': 1, 'updatedAt': -1}")
+})
 public class Resume {
     @Id
     @JsonProperty("_id")

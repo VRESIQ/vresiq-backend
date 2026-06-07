@@ -26,7 +26,10 @@ yarn-error.log*
 
 # Generated PDF audit files and temporary test outputs
 temp_deploy_audit/
-*.pdf
-*.txt
+downloaded-from-app.pdf
+saved-test.pdf
+test-output-meta.pdf
+test-output.pdf
+extracted-text.txt
 pdf-audit-report.json
 pdf-audit-report.md

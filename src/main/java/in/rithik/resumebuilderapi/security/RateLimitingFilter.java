@@ -14,6 +14,21 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
+/*
+Purpose:
+Intercepts auth and file upload HTTP requests to enforce rate-limiting via Token Bucket.
+
+Used By:
+Spring Security Filter Chain
+
+Request Flow:
+Client Request -> RateLimitingFilter -> Security Filters -> Controller
+
+Learn:
+- Spring OncePerRequestFilter
+- Token Bucket Rate Limiting Algorithm
+- ConcurrentHashMap usage
+*/
 @Component
 @Slf4j
 public class RateLimitingFilter extends OncePerRequestFilter {

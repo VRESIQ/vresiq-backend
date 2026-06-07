@@ -23,6 +23,13 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/*
+Purpose: Configures Spring Security chain, stateless sessions, password encoder, CORS permissions, and filters.
+Used By: Spring Boot context initialization
+Request Flow: Web Request -> SecurityFilterChain -> Controller
+Data Flow: HTTP Client Context -> SecurityConfig Rules -> Application Context
+Learn: EnableWebSecurity, SecurityFilterChain, CORS Configurations
+*/
 @Configuration
 @EnableWebSecurity
 @RequiredArgsConstructor

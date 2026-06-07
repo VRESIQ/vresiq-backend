@@ -21,6 +21,13 @@ import java.util.Map;
 
 import static in.rithik.resumebuilderapi.util.AppConstants.*;
 
+/*
+Purpose: Exposes endpoints to create, fetch, edit, delete, and upload metadata/images for resume documents.
+Used By: ResumeEditor.jsx, Dashboard.jsx
+Request Flow: Frontend -> ResumeController -> ResumeService -> ResumeRepository -> MongoDB
+Data Flow: HTTP Payload / Path Variable -> ResumeController -> MongoDB document mapping
+Learn: Controller Routing, Path Variables, @RequestPart uploads
+*/
 @RestController
 @RequestMapping(RESUME)
 @RequiredArgsConstructor

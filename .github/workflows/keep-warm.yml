@@ -1,0 +1,20 @@
+name: Backend Keep-Warm
+
+on:
+  schedule:
+    - cron: '*/12 * * * *' # Run every 12 minutes
+  workflow_dispatch: # Allow manual trigger from GitHub UI
+
+jobs:
+  ping-backend:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping Health Endpoint
+        run: |
+          echo "Initiating keep-warm request..."
+          curl -s -o /dev/null -w "Response Status: %{http_code}\n" \
+            --connect-timeout 15 \
+            --max-time 30 \
+            --retry 3 \
+            --retry-delay 5 \
+            https://vresiq-backend.onrender.com/actuator/health

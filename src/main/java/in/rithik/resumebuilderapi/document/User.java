@@ -29,10 +29,12 @@ public class User {
     @lombok.Builder.Default
     private boolean emailVerified = false;
     @com.fasterxml.jackson.annotation.JsonIgnore
+    @org.springframework.data.mongodb.core.index.Indexed(sparse = true)
     private String verificationToken;
     private LocalDateTime verificationExpires;
     private LocalDateTime lastVerificationSent;
     @com.fasterxml.jackson.annotation.JsonIgnore
+    @org.springframework.data.mongodb.core.index.Indexed(sparse = true)
     private String passwordResetToken;
     private LocalDateTime passwordResetExpires;
     private LocalDateTime lastPasswordResetRequest;

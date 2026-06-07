@@ -11,6 +11,13 @@ import org.springframework.stereotype.Component;
 import java.security.Key;
 import java.util.Date;
 
+/*
+Purpose: Utility class to generate, parse, validate, and manage JWT access and refresh tokens.
+Used By: AuthService, JwtAuthenticationFilter
+Request Flow: Token Generation / Parsing Operations
+Data Flow: User Details -> Signed JWT / JWT -> Decoded Claims
+Learn: io.jsonwebtoken.Jwts, HMAC-SHA keys, Claims extraction
+*/
 @Component
 public class JwtUtil {
     @Value("${jwt.secret}")

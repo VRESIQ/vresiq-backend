@@ -9,6 +9,13 @@ import org.springframework.boot.CommandLineRunner;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 
+/*
+Purpose: Seeds default data like administrator users on application startup if they don't exist in the database.
+Used By: Spring Boot startup runner
+Request Flow: Application Boot -> DatabaseSeeder -> UserRepository -> MongoDB Atlas
+Data Flow: Value Injection Defaults -> DatabaseSeeder -> DB records
+Learn: CommandLineRunner, Database initialization seeder, Conditional record seeding
+*/
 @Component
 @RequiredArgsConstructor
 @Slf4j

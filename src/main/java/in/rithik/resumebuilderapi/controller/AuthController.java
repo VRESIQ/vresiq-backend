@@ -21,6 +21,23 @@ import java.util.Objects;
 
 import static in.rithik.resumebuilderapi.util.AppConstants.*;
 
+/*
+Purpose:
+Handles user authentication and account registration API requests.
+
+Used By:
+Login.jsx
+Register.jsx
+Profile.jsx
+
+Request Flow:
+Frontend -> AuthController -> AuthService -> UserRepository -> MongoDB Atlas
+
+Learn:
+- Spring RestControllers
+- Endpoint Routing (@PostMapping, @GetMapping, @DeleteMapping)
+- JWT Token Generation & Verification
+*/
 @RestController
 @Slf4j
 @RequiredArgsConstructor
@@ -147,6 +164,13 @@ public class AuthController {
         Object principalObject = authentication.getPrincipal();
         AuthResponse updatedProfile = authService.updateProfile(principalObject, updates);
         return ResponseEntity.ok(updatedProfile);
+    }
+
+    @DeleteMapping(PROFILE)
+    public ResponseEntity<?> deleteProfile(Authentication authentication){
+        Object principalObject = authentication.getPrincipal();
+        authService.deleteProfile(principalObject);
+        return ResponseEntity.ok(Map.of("success", "true", "message", "Your account has been deleted successfully."));
     }
 
 }

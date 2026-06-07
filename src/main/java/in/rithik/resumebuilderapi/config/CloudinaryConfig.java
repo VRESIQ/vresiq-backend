@@ -5,8 +5,17 @@ import com.cloudinary.utils.ObjectUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Lazy;
 
+/*
+Purpose: Configures the Cloudinary API client bean with selective lazy-loading to optimize boot speed.
+Used By: FileUploadService.java
+Request Flow: FileUploadService -> Cloudinary config bean -> Cloudinary CDN API
+Data Flow: Secret Properties -> Cloudinary config -> Instantiated Client Bean
+Learn: @Lazy beans, Third-party configurations, Configuration properties
+*/
 @Configuration
+@Lazy
 public class CloudinaryConfig {
 
     @Value("${cloudinary.cloud-name}")
@@ -19,6 +28,7 @@ public class CloudinaryConfig {
     private String apiSecret;
 
     @Bean
+    @Lazy
     public Cloudinary cloudinary(){
        return new Cloudinary(ObjectUtils.asMap(
             "cloud_name", cloudName,

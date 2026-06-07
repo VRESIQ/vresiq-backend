@@ -16,6 +16,13 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+/*
+Purpose: Executes business logic for resume creation limit checks, template validation, and CRUD operations.
+Used By: ResumeController.java
+Request Flow: ResumeController -> ResumeService -> ResumeRepository -> MongoDB
+Data Flow: User Session / DTO -> ResumeService -> Document Persistence / Limit Checks
+Learn: Spring Service Annotation, Business validations, Repository queries
+*/
 @Service
 @RequiredArgsConstructor
 @Slf4j

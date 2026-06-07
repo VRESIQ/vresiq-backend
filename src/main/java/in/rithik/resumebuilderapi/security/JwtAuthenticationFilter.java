@@ -19,6 +19,13 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import java.io.IOException;
 import java.util.Collections;
 
+/*
+Purpose: Intercepts requests to extract and validate Bearer JWT access tokens.
+Used By: Spring Security filter pipeline
+Request Flow: Frontend -> Security filter chain -> Controller
+Data Flow: HTTP Authorization Header -> JwtAuthenticationFilter -> SecurityContextHolder
+Learn: OncePerRequestFilter, SecurityContextHolder, UsernamePasswordAuthenticationToken
+*/
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -55,9 +62,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         jwtUtil.validateToken(token) &&
                         !jwtUtil.isTokenExpired(token)) {
 
-                    // DUAL-LOOKUP: Try ID first, fallback to Email
-                    User user = userRepository.findById(userId)
-                            .orElseGet(() -> userRepository.findByEmail(userId).orElse(null));
+                    // DUAL-LOOKUP: Optimize lookup by checking type
+                    User user;
+                    if (userId.contains("@")) {
+                        user = userRepository.findByEmail(userId).orElse(null);
+                    } else {
+                        user = userRepository.findById(userId)
+                                .orElseGet(() -> userRepository.findByEmail(userId).orElse(null));
+                    }
 
                     if (user == null) {
                         log.warn("Auth: User {} not found in database.", userId);

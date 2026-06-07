@@ -2,9 +2,7 @@ package in.rithik.resumebuilderapi;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import jakarta.annotation.PostConstruct;
+
 
 import org.springframework.cache.annotation.EnableCaching;
 import org.springframework.scheduling.annotation.EnableScheduling;
@@ -62,13 +60,6 @@ public class ResumebuilderapiApplication {
 		}
 	}
 
-	@Autowired
-	private MongoTemplate mongoTemplate;
 
-	@PostConstruct
-	public void printDb() {
-		System.out.println("======== CONNECTED DATABASE: "
-				+ mongoTemplate.getDb().getName() + " ========");
-	}
 
 }
