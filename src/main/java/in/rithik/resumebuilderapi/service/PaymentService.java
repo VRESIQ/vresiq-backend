@@ -125,4 +125,63 @@ public class PaymentService {
         }
         return payment;
     }
+
+    @Value("${razorpay.webhook.secret:}")
+    private String webhookSecret;
+
+    public boolean handleWebhook(String payload, String signature) {
+        // Validate signature if secret is configured
+        if (webhookSecret != null && !webhookSecret.isBlank()) {
+            try {
+                boolean isValid = Utils.verifyWebhookSignature(payload, signature, webhookSecret);
+                if (!isValid) {
+                    log.error("Razorpay Webhook: Signature verification failed.");
+                    return false;
+                }
+            } catch (Exception e) {
+                log.error("Razorpay Webhook: Error during signature verification: {}", e.getMessage());
+                return false;
+            }
+        } else {
+            log.warn("Razorpay Webhook: RAZORPAY_WEBHOOK_SECRET is not configured. Skipping signature verification.");
+        }
+
+        try {
+            org.json.JSONObject json = new org.json.JSONObject(payload);
+            String event = json.optString("event");
+            log.info("Processing Razorpay Webhook Event: {}", event);
+
+            if ("order.paid".equalsIgnoreCase(event) || "payment.captured".equalsIgnoreCase(event)) {
+                org.json.JSONObject eventPayload = json.getJSONObject("payload");
+                org.json.JSONObject paymentEntity = eventPayload.getJSONObject("payment").getJSONObject("entity");
+                
+                String orderId = paymentEntity.getString("order_id");
+                String paymentId = paymentEntity.getString("id");
+
+                Payment payment = paymentRepository.findByRazorpayOrderId(orderId).orElse(null);
+                if (payment == null) {
+                    log.warn("Razorpay Webhook: Payment record not found for Order ID: {}", orderId);
+                    return false;
+                }
+
+                if ("paid".equalsIgnoreCase(payment.getStatus())) {
+                    log.info("Razorpay Webhook: Payment for Order ID {} is already marked as paid. Skipping duplicate processing.", orderId);
+                    return true;
+                }
+
+                payment.setStatus("paid");
+                payment.setRazorpayPaymentId(paymentId);
+                payment.setRazorpaySignature(signature);
+                paymentRepository.save(payment);
+
+                upgradeUserSubscription(payment.getUserId(), payment.getPlanType());
+                log.info("Razorpay Webhook: Successfully updated payment status and upgraded user {} to {} plan", payment.getUserId(), payment.getPlanType());
+                return true;
+            }
+            return true; // Return true for unhandled events to acknowledge receipt
+        } catch (Exception e) {
+            log.error("Razorpay Webhook: Error parsing webhook payload", e);
+            return false;
+        }
+    }
 }

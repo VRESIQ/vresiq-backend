@@ -71,6 +71,7 @@ public class SecurityConfig {
                                 "/api/auth/reset-password",
                                 "/api/auth/refresh",
                                 "/api/verify/**",
+                                "/api/payment/webhook",
                                 "/actuator/**"
                         ).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")

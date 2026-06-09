@@ -86,4 +86,23 @@ public class PaymentController {
         // 2. return response
         return ResponseEntity.ok(paymentDetails);
     }
+
+    @PostMapping("/webhook")
+    public ResponseEntity<?> handleWebhook(
+            @RequestBody String payload,
+            @RequestHeader("X-Razorpay-Signature") String signature
+    ) {
+        log.info("Received Razorpay Webhook request. Signature: {}", signature);
+        try {
+            boolean success = paymentService.handleWebhook(payload, signature);
+            if (success) {
+                return ResponseEntity.ok(Map.of("status", "success", "message", "Webhook processed successfully"));
+            } else {
+                return ResponseEntity.badRequest().body(Map.of("status", "failed", "message", "Webhook processing failed or signature invalid"));
+            }
+        } catch (Exception e) {
+            log.error("Error processing Razorpay Webhook", e);
+            return ResponseEntity.status(500).body(Map.of("status", "error", "message", e.getMessage()));
+        }
+    }
 }
