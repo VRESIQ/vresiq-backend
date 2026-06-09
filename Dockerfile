@@ -60,7 +60,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 COPY --from=java-build /app/target/resumebuilderapi-0.0.1-SNAPSHOT.jar /app/app.jar
-COPY pdf-generator.js package.json package-lock.json /app/
+COPY tools/pdf-generator.js package.json package-lock.json /app/
 COPY --from=node-deps /app/node_modules /app/node_modules
 COPY --from=node-deps /app/.cache /app/.cache
 
