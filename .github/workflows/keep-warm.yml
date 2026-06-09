@@ -2,7 +2,7 @@ name: Backend Keep-Warm
 
 on:
   schedule:
-    - cron: '*/12 * * * *'
+    - cron: '*/5 * * * *'
   workflow_dispatch: {}
 
 jobs:
@@ -12,7 +12,7 @@ jobs:
       - name: Ping Health Endpoint
         run: |
           echo "Initiating keep-warm request..."
-          curl -s -o /dev/null -w "Response Status: %{http_code}\n" \
+          curl -S -s -o /dev/null -w "Response Status: %{http_code}\n" \
             --connect-timeout 15 \
             --max-time 30 \
             --retry 3 \
