@@ -140,7 +140,7 @@ public class AiService {
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.set("Authorization", "Bearer " + finalKey);
         headers.set("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
-        headers.set("HTTP-Referer", "https://vresiq.app");
+        headers.set("HTTP-Referer", "https://vresiq.vercel.app");
         headers.set("X-Title", "VRESIQ");
 
         String toneInstructions = switch (tone.toLowerCase()) {
