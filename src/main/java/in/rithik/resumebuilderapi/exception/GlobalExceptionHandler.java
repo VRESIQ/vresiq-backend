@@ -55,6 +55,26 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(response);
     }
 
+    @ExceptionHandler(EmailNotVerifiedException.class)
+    public ResponseEntity<Map<String, Object>> handleEmailNotVerifiedException(EmailNotVerifiedException ex){
+        log.info("InsideGlobalExceptionHandler - handleEmailNotVerifiedException()");
+        // Do NOT call recordException(ex) here to avoid reporting to Sentry
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", ex.getMessage());
+        response.put("error", "EMAIL_NOT_VERIFIED");
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
+    @ExceptionHandler(org.springframework.web.multipart.MaxUploadSizeExceededException.class)
+    public ResponseEntity<Map<String, Object>> handleMaxSizeException(org.springframework.web.multipart.MaxUploadSizeExceededException ex) {
+        log.info("InsideGlobalExceptionHandler - handleMaxSizeException()");
+        // Do NOT call recordException(ex) as it is a user/validation constraint error
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", "File upload failed");
+        response.put("error", "The uploaded file exceeds the maximum allowed size limit of 2MB.");
+        return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(response);
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex){
         log.error("InsideGlobalExceptionhandler - handleRuntimeException() exception occurred: ", ex);

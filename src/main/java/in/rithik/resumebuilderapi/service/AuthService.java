@@ -155,7 +155,7 @@ public class AuthService {
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new UsernameNotFoundException("Incorrect password for this email.");
         }
-        if (!user.isEmailVerified()) throw new RuntimeException("Please verify your email before logging in.");
+        if (!user.isEmailVerified()) throw new in.rithik.resumebuilderapi.exception.EmailNotVerifiedException("Please verify your email before logging in.");
 
         String accessToken = jwtUtil.generateToken(user.getEmail());
         String refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
