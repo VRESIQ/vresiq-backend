@@ -72,15 +72,17 @@ public class ResumeExportController {
             // Execute "node -v" to verify node works and log its version
             verifyNodeExecutable(nodeCommand);
 
-            log.info("PDF Export Pipeline - Configuring ProcessBuilder for pdf-generator.js execution...");
-            log.info("PDF Export Pipeline - ProcessBuilder command: [{}, {}, {}, {}]", 
-                     nodeCommand, scriptFile.getAbsolutePath(), tempHtmlFile.getAbsolutePath(), tempPdfFile.getAbsolutePath());
+            String isFreePlan = payload.getOrDefault("isFreePlan", "true");
+            log.info("PDF Export Pipeline - Configuring ProcessBuilder for pdf-generator.js execution (isFreePlan={})...", isFreePlan);
+            log.info("PDF Export Pipeline - ProcessBuilder command: [{}, {}, {}, {}, {}]", 
+                     nodeCommand, scriptFile.getAbsolutePath(), tempHtmlFile.getAbsolutePath(), tempPdfFile.getAbsolutePath(), isFreePlan);
 
             ProcessBuilder pb = new ProcessBuilder(
                     nodeCommand,
                     scriptFile.getAbsolutePath(),
                     tempHtmlFile.getAbsolutePath(),
-                    tempPdfFile.getAbsolutePath()
+                    tempPdfFile.getAbsolutePath(),
+                    isFreePlan
             );
 
             // Merge error stream with standard stream to read all outputs (stdout and stderr)

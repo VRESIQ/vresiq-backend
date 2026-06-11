@@ -30,12 +30,13 @@ const resolveBrowserExecutable = async () => {
 (async () => {
   const args = process.argv.slice(2);
   if (args.length < 2) {
-    console.error('Usage: node pdf-generator.js <inputHtmlPath> <outputPdfPath>');
+    console.error('Usage: node pdf-generator.js <inputHtmlPath> <outputPdfPath> [isFreePlan]');
     process.exit(1);
   }
 
   const inputHtmlPath = args[0];
   const outputPdfPath = args[1];
+  const isFreePlan = args[2] !== 'false';
 
   let browser;
   try {
@@ -89,9 +90,16 @@ const resolveBrowserExecutable = async () => {
       format: 'letter',
       printBackground: true,
       preferCSSPageSize: true,
+      displayHeaderFooter: true,
+      headerTemplate: '<span></span>',
+      footerTemplate: isFreePlan ? `
+        <div style="font-family: 'Inter', 'Manrope', 'Plus Jakarta Sans', 'Helvetica Neue', Arial, sans-serif; font-size: 9px; font-weight: 500; color: #6B7280; width: 100%; text-align: center; letter-spacing: 0.4px; line-height: 1; padding-bottom: 12px; -webkit-print-color-adjust: exact;">
+          Made with VResIQ
+        </div>
+      ` : '<span></span>',
       margin: {
-        top: '0px',
-        bottom: '0px',
+        top: '40px',
+        bottom: '48px',
         left: '0px',
         right: '0px'
       }
