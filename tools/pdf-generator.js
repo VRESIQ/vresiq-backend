@@ -89,7 +89,7 @@ const resolveBrowserExecutable = async () => {
       path: outputPdfPath,
       format: 'letter',
       printBackground: true,
-      preferCSSPageSize: true,
+      preferCSSPageSize: false,    // MUST be false: when true, Puppeteer ignores margin:{} and footerTemplate gets 0 space
       displayHeaderFooter: true,
       headerTemplate: '<span></span>',
       footerTemplate: isFreePlan ? `
@@ -114,7 +114,7 @@ const resolveBrowserExecutable = async () => {
       ` : '<span></span>',
       margin: {
         top: '40px',
-        bottom: '48px',
+        bottom: '36px',   // footerTemplate renders here; 36px gives ~26px content space + 10px padding
         left: '0px',
         right: '0px'
       }
