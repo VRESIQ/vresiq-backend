@@ -94,7 +94,7 @@ const resolveBrowserExecutable = async () => {
       headerTemplate: '<span></span>',
       footerTemplate: isFreePlan ? `
         <div style="font-family: 'Inter', 'Manrope', 'Plus Jakarta Sans', 'Helvetica Neue', Arial, sans-serif; font-size: 9px; font-weight: 500; color: #6B7280; width: 100%; text-align: center; letter-spacing: 0.4px; line-height: 1; padding-bottom: 12px; -webkit-print-color-adjust: exact;">
-          Made with VResIQ
+          Made with VRESIQ
         </div>
       ` : '<span></span>',
       margin: {
