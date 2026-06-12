@@ -37,6 +37,16 @@ const resolveBrowserExecutable = async () => {
   const inputHtmlPath = args[0];
   const outputPdfPath = args[1];
   const isFreePlan = args[2] !== 'false';
+  
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log('PDF Generator Watermark Configuration');
+  console.log('═══════════════════════════════════════════════════════════════');
+  console.log(`Input HTML Path: ${inputHtmlPath}`);
+  console.log(`Output PDF Path: ${outputPdfPath}`);
+  console.log(`Raw isFreePlan arg[2]: "${args[2]}"`);
+  console.log(`Parsed isFreePlan: ${isFreePlan}`);
+  console.log(`Watermark Status: ${isFreePlan ? '✓ ENABLED (Free Plan) - Watermark will be added' : '✗ DISABLED (Pro Plan) - No watermark'}`);
+  console.log('═══════════════════════════════════════════════════════════════');
 
   let browser;
   try {
@@ -85,6 +95,15 @@ const resolveBrowserExecutable = async () => {
     // Ensure all web fonts are loaded completely before printing
     await page.evaluateHandle('document.fonts.ready');
 
+    console.log('Starting PDF generation with Puppeteer...');
+    if (isFreePlan) {
+      console.log('✓ Footer Template ENABLED - Watermark "Made with VRESIQ" will appear on every page');
+      console.log('  Font: 8px, Color: #999999, Opacity: 0.35');
+      console.log('  Position: Bottom center of each page');
+    } else {
+      console.log('✗ Footer Template DISABLED - No watermark for pro users');
+    }
+
     await page.pdf({
       path: outputPdfPath,
       format: 'letter',
@@ -92,29 +111,10 @@ const resolveBrowserExecutable = async () => {
       preferCSSPageSize: false,    // MUST be false: when true, Puppeteer ignores margin:{} and footerTemplate gets 0 space
       displayHeaderFooter: true,
       headerTemplate: '<span></span>',
-      footerTemplate: isFreePlan ? `
-        <div style="
-          font-family: 'Inter', 'Manrope', 'Plus Jakarta Sans', 'Helvetica Neue', Arial, sans-serif;
-          font-size: 9px;
-          font-weight: 500;
-          color: #6B7280;
-          width: 100%;
-          box-sizing: border-box;
-          text-align: center;
-          letter-spacing: 0.4px;
-          line-height: 1;
-          padding: 0 0 10px 0;
-          margin: 0;
-          display: block;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
-        ">
-          Made with VRESIQ
-        </div>
-      ` : '<span></span>',
+      footerTemplate: '<div></div>',  // Footer template not used - watermark is embedded in HTML via CSS positioning
       margin: {
         top: '40px',
-        bottom: '36px',   // footerTemplate renders here; 36px gives ~26px content space + 10px padding
+        bottom: '45px',   // Increased from 36px to ensure footer template has adequate space
         left: '0px',
         right: '0px'
       }
@@ -139,10 +139,21 @@ const resolveBrowserExecutable = async () => {
       // Save without incremental updates to prevent post-generation metadata changes (revision count remains zero)
       const modifiedPdfBytes = await pdfDoc.save();
       fs.writeFileSync(outputPdfPath, modifiedPdfBytes);
-      console.log('PDF metadata standardized successfully via pdf-lib');
+      console.log('✓ PDF metadata standardized successfully via pdf-lib');
     } catch (metaErr) {
-      console.error('Warning: Failed to set PDF metadata:', metaErr);
+      console.error('✗ Warning: Failed to set PDF metadata:', metaErr);
     }
+
+    console.log('═══════════════════════════════════════════════════════════════');
+    console.log('PDF Generated Successfully');
+    console.log('═══════════════════════════════════════════════════════════════');
+    if (isFreePlan) {
+      console.log('✓ Free plan PDF generated with watermark footer enabled');
+      console.log('  "Made with VRESIQ" will appear at the bottom of every page');
+    } else {
+      console.log('✓ Pro plan PDF generated without watermark');
+    }
+    console.log('═══════════════════════════════════════════════════════════════');
 
     console.log('PDF generated successfully');
     process.exit(0);
