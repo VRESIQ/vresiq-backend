@@ -317,7 +317,7 @@ const FIXTURES = [
     ],
     orderedSections: ['SUMMARY', 'EXPERIENCE', 'PROJECTS', 'SKILLS'],
     sectionIsolation: [
-      { title: 'SUMMARY',    uniqueContent: ['Senior Software Architect'] },
+      { title: 'SUMMARY',    uniqueContent: ['12+ years designing'] },
       { title: 'EXPERIENCE', uniqueContent: ['Principal Architect', 'CloudTech', 'Senior Developer', 'FinTech', 'Kubernetes'] },
       { title: 'PROJECTS',   uniqueContent: ['Microservice Platform'] },
       { title: 'SKILLS',     uniqueContent: ['Go', 'TypeScript'] },
@@ -594,7 +594,7 @@ const FIXTURES = [
     ],
     orderedSections: ['EXPERIENCE', 'PROJECTS', 'SKILLS'],
     sectionIsolation: [
-      { title: 'EXPERIENCE', uniqueContent: ['Senior Software Engineer', 'Systems Corp'] },
+      { title: 'EXPERIENCE', uniqueContent: ['consensus module', 'Systems Corp'] },
       { title: 'PROJECTS',   uniqueContent: ['Distributed Database'] },
       // Use terms that appear ONLY in the SKILLS line, not in EXPERIENCE bullets
       { title: 'SKILLS',     uniqueContent: ['gRPC', 'Terraform'] },
