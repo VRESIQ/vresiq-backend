@@ -111,7 +111,26 @@ const resolveBrowserExecutable = async () => {
       preferCSSPageSize: false,    // MUST be false: when true, Puppeteer ignores margin:{} and footerTemplate gets 0 space
       displayHeaderFooter: true,
       headerTemplate: '<span></span>',
-      footerTemplate: '<div></div>',  // Footer template not used - watermark is embedded in HTML via CSS positioning
+      footerTemplate: isFreePlan ? `
+        <div style="
+          font-family: 'Inter', 'Manrope', 'Plus Jakarta Sans', 'Helvetica Neue', Arial, sans-serif;
+          font-size: 8px;
+          font-weight: 400;
+          color: #999999;
+          width: 100%;
+          box-sizing: border-box;
+          text-align: center;
+          letter-spacing: 0px;
+          line-height: 1;
+          margin: 0;
+          display: block;
+          opacity: 0.35;
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+        ">
+          Made with VRESIQ
+        </div>
+      ` : '<div></div>',
       margin: {
         top: '40px',
         bottom: '45px',   // Increased from 36px to ensure footer template has adequate space
