@@ -115,6 +115,8 @@ public class Resume {
         private String linkedIn;
         private String github;
         private String website;
+        private String leetCode;
+        private String hackerRank;
 
     }
 
