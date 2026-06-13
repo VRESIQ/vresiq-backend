@@ -181,6 +181,7 @@ public class Resume {
         private String title;
         private String issuer;
         private String year;
+        private String certificateUrl;
 
     }
 
