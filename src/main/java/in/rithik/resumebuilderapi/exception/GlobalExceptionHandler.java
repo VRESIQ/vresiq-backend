@@ -96,8 +96,32 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(response);
     }
 
-    private void recordException(Exception ex) {
+    private void recordException(Throwable ex) {
         if (Sentry.isEnabled()) {
+            // Filter out expected user action exceptions
+            if (ex instanceof MethodArgumentNotValidException ||
+                ex instanceof ResourceExistsException ||
+                ex instanceof UsernameNotFoundException ||
+                ex instanceof EmailNotVerifiedException ||
+                ex instanceof org.springframework.web.multipart.MaxUploadSizeExceededException) {
+                return;
+            }
+
+            // Inspect RuntimeException messages for expected business-rule rejections
+            if (ex instanceof RuntimeException) {
+                String msg = ex.getMessage();
+                if (msg != null) {
+                    String lower = msg.toLowerCase();
+                    if (lower.contains("upgrade your plan") ||
+                        lower.contains("cooldown") ||
+                        lower.contains("unauthorized") ||
+                        lower.contains("not found") ||
+                        lower.contains("invalid") ||
+                        lower.contains("quota reached")) {
+                        return;
+                    }
+                }
+            }
             Sentry.captureException(ex);
         }
     }
