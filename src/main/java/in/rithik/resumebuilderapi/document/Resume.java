@@ -109,14 +109,14 @@ public class Resume {
     @NoArgsConstructor
     @Builder
     public static class ContactInfo{
-        private String email;
-        private String phone;
-        private String location;
-        private String linkedIn;
-        private String github;
-        private String website;
-        private String leetCode;
-        private String hackerRank;
+        private Object email;
+        private Object phone;
+        private Object location;
+        private Object linkedIn;
+        private Object github;
+        private Object website;
+        private Object leetCode;
+        private Object hackerRank;
 
     }
 

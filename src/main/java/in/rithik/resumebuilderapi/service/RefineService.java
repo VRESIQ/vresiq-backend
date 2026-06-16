@@ -202,12 +202,12 @@ public class RefineService {
                 "Use a complete phone number. Include country code and enough digits.", "warning");
         }
 
-        points += requireText(issues, "missing_location", "Contact > Location", contact.getLocation(), 3,
+        points += requireText(issues, "missing_location", "Contact > Location", safe(contact.getLocation()), 3,
             "Add city and country or region. Many ATS filters use location.");
 
-        points += checkOptionalUrl(contact.getLinkedIn(), "Contact > LinkedIn", "Use a full LinkedIn URL such as https://linkedin.com/in/username.", issues);
-        points += checkOptionalUrl(contact.getGithub(), "Contact > GitHub", "Use a full GitHub URL such as https://github.com/username.", issues);
-        points += checkOptionalUrl(contact.getWebsite(), "Contact > Website", "Use a complete portfolio URL, including a valid domain.", issues);
+        points += checkOptionalUrl(safe(contact.getLinkedIn()), "Contact > LinkedIn", "Use a full LinkedIn URL such as https://linkedin.com/in/username.", issues);
+        points += checkOptionalUrl(safe(contact.getGithub()), "Contact > GitHub", "Use a full GitHub URL such as https://github.com/username.", issues);
+        points += checkOptionalUrl(safe(contact.getWebsite()), "Contact > Website", "Use a complete portfolio URL, including a valid domain.", issues);
 
         return points;
     }
@@ -669,6 +669,18 @@ public class RefineService {
 
     private String safe(String value) {
         return value == null ? "" : value;
+    }
+
+    private String safe(Object value) {
+        if (value == null) return "";
+        if (value instanceof String) {
+            return (String) value;
+        }
+        if (value instanceof java.util.Map) {
+            Object val = ((java.util.Map<?, ?>) value).get("value");
+            return val != null ? val.toString() : "";
+        }
+        return value.toString();
     }
 
     private <T> List<T> list(List<T> value) {
