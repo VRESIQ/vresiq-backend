@@ -207,5 +207,10 @@ public class Resume {
         private String subtitle;
         private String date;
         private String description;
+        private String authors;
+        @JsonProperty("abstract")
+        private String abstractText;
+        private String paperUrl;
+        private String abstractAuthors;
     }
 }
