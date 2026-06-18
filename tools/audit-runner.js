@@ -4,130 +4,90 @@ const path = require('path');
 
 const mockResume = {
   id: "e2e-test-resume",
-  title: "E2E Test Resume",
+  title: "",
   template: "ats_lead",
   profileInfo: {
-    fullName: "Dr. Alexander-Constantine Maximillian von Hohenzollern-Sigmaringen-Braganza III",
-    designation: "Chief Executive Visual Effects Supervisor",
-    targetRole: "", // Empty to test placeholder
-    summary: "Highly motivated and driven technical architect with a track record of building complex distributed web systems.",
+    fullName: "",
+    designation: "",
+    targetRole: "",
+    summary: "",
     ProfilePreviewUrl: ""
   },
   contactInfo: {
-    email: "alexander@verbose-domain.com",
-    phone: "+91 98765-43210",
-    location: "Hyderabad, India",
-    linkedIn: "linkedin.com/in/alexander-constantine",
-    github: "github.com/alexander-constantine",
-    website: "" // Empty to test placeholder
+    email: "",
+    phone: "",
+    location: "",
+    linkedIn: "",
+    github: "",
+    website: ""
   },
   workExperience: [
-    {
-      company: "Google India Technical Operations & Engineering Center",
-      role: "Lead Software Engineering Architect Specialist",
-      location: "Hyderabad Campus",
-      startDate: "Jan 2023",
-      endDate: "Present",
-      description: "Led a team of 15 engineers to rewrite core search index ranking pipelines.\nMentored junior developers and designed internal microservice frameworks."
-    },
-    {
-      company: "",
-      role: "",
-      location: "",
-      startDate: "",
-      endDate: "",
-      description: "" // Empty item to test placeholders
-    }
+    { company: "", role: "", location: "", startDate: "", endDate: "", description: "" }
   ],
   education: [
-    {
-      degree: "Master of Technology (M.Tech) in Computer Science",
-      institution: "International Institute of Information Technology",
-      location: "Hyderabad",
-      gpa: "9.8",
-      startDate: "2018",
-      endDate: "2020",
-      description: "Data Structures, Database Management Systems."
-    },
-    {
-      degree: "",
-      institution: "",
-      location: "",
-      gpa: "",
-      startDate: "",
-      endDate: "",
-      description: "" // Empty item to test placeholders
-    }
+    { degree: "", institution: "", location: "", gpa: "", startDate: "", endDate: "", description: "" }
   ],
   skills: [
-    { "name": "React, Node.js, Express, Go", "progress": 95 },
-    { "name": "", "progress": 0 } // Empty item to test placeholders
+    { name: "", progress: 0 }
   ],
   projects: [
-    {
-      title: "Artificial Intelligence Assisted Resume Builder",
-      description: "Designed and built an enterprise-grade resume builder featuring automated ATS scoring.",
-      github: "https://github.com/alexander/ai-resume-builder",
-      liveDemo: "https://ai-resume-builder.com"
-    },
-    {
-      title: "",
-      description: "",
-      github: "",
-      liveDemo: "" // Empty item to test placeholders
-    }
+    { title: "", description: "", github: "", liveDemo: "" }
   ],
   certifications: [
-    {
-      "title": "Amazon Web Services (AWS) Certified Solutions Architect",
-      "issuer": "Amazon Web Services",
-      "year": "March 2025",
-      "certificateUrl": "https://aws.amazon.com/verification"
-    },
-    {
-      "title": "",
-      "issuer": "",
-      "year": "",
-      "certificateUrl": "" // Empty item to test placeholders
-    }
+    { title: "", issuer: "", year: "", certificateUrl: "" }
   ],
   languages: [
-    { "name": "English, German", "progress": 90 },
-    { "name": "", "progress": 0 } // Empty item to test placeholders
+    { name: "", progress: 0 }
   ],
   interests: [
-    "Building open-source developer tooling",
-    "" // Empty to test placeholder
+    ""
   ],
   customSections: {
+    internships: [
+      { title: "", subtitle: "", date: "", description: "" }
+    ],
+    achievements: [
+      { title: "", subtitle: "", date: "", description: "" }
+    ],
     publications: [
-      {
-        title: "A Decoupled High-Throughput Consensus Architecture",
-        subtitle: "IEEE Journal of Artificial Intelligence",
-        date: "January 2026",
-        authors: "Dr. Alexander-Constantine, Dr. Alan Turing",
-        abstract: "We present a decoupled architecture for parsing unstructured resume PDF documents.",
-        paperUrl: "https://arxiv.org/abs/2606.12345"
-      },
-      {
-        title: "",
-        subtitle: "",
-        date: "",
-        authors: "",
-        abstract: "",
-        paperUrl: "" // Empty item to test placeholders
-      }
+      { title: "", subtitle: "", date: "", authors: "", abstract: "", paperUrl: "" }
     ],
     volunteering: [
-      {
-        title: "Lead Volunteer Coding Instructor",
-        subtitle: "Girls Who Code Hyderabad Chapter",
-        date: "September 2024 - Present",
-        description: "Taught programming principles."
-      }
+      { title: "", subtitle: "", date: "", description: "" }
+    ],
+    leadership: [
+      { title: "", subtitle: "", date: "", description: "" }
+    ],
+    hackathons: [
+      { title: "", subtitle: "", date: "", description: "" }
+    ],
+    openSource: [
+      { title: "", subtitle: "", date: "", description: "" }
+    ],
+    awards: [
+      { title: "", subtitle: "", date: "", description: "" }
+    ],
+    workshops: [
+      { title: "", subtitle: "", date: "", description: "" }
+    ],
+    coursework: [
+      { title: "", subtitle: "", date: "", description: "" }
+    ],
+    extracurriculars: [
+      { title: "", subtitle: "", date: "", description: "" }
+    ],
+    technicalProfiles: [
+      { title: "", subtitle: "", date: "", description: "" }
+    ],
+    patents: [
+      { title: "", subtitle: "", date: "", description: "" }
+    ],
+    researchExperience: [
+      { title: "", subtitle: "", date: "", description: "" }
     ]
   },
   decoratives: {
+    sectionVisibility: "{\"experience\":true,\"internships\":true,\"languages\":true,\"interests\":true,\"achievements\":true,\"publications\":true,\"volunteering\":true,\"leadership\":true,\"hackathons\":true,\"openSource\":true,\"awards\":true,\"workshops\":true,\"coursework\":true,\"technicalProfiles\":true,\"extracurriculars\":true,\"patents\":true,\"researchExperience\":true}",
     sectionBullets: "{\"experience\":true,\"education\":true,\"skills\":true,\"languages\":true,\"projects\":true,\"publications\":true,\"volunteering\":true}"
   }
 };
@@ -246,7 +206,14 @@ const mockResume = {
     await page.waitForSelector('#resume-preview');
     
     console.log('5. Clicking through sections and performing visual captures...');
-    const sections = ["Profile", "Contact", "Summary", "Experience", "Education", "Skills", "Projects", "Certifications", "Languages", "Publications"];
+    const sections = [
+      "Profile", "Contact", "Summary", "Experience", "Education", "Skills", 
+      "Projects", "Certifications", "Languages", "Interests", "Internships", 
+      "Achievements", "Publications", "Volunteering", "Leadership", "Hackathons", 
+      "Open Source Contributions", "Awards", "Workshops", "Coursework", 
+      "Technical Profiles", "Extracurricular Activities", "Patents", "Research Experience"
+    ];
+
     for (const section of sections) {
       console.log(`Navigating to section: ${section}`);
       
@@ -282,7 +249,6 @@ const mockResume = {
       await (await downloadBtn.asElement()).click();
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Let's run pdf-generator.js on visual_audit_temp.html
       const tempHtml = path.join(__dirname, 'visual_audit_temp.html');
       if (fs.existsSync(tempHtml)) {
         console.log('Running local Puppeteer PDF generator on visual_audit_temp.html...');
