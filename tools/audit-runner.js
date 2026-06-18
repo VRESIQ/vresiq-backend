@@ -8,18 +8,18 @@ const mockResume = {
   template: "ats_lead",
   profileInfo: {
     fullName: "Dr. Alexander-Constantine Maximillian von Hohenzollern-Sigmaringen-Braganza III",
-    designation: "Chief Executive Visual Effects Supervisor & Senior Technical Lead Practitioner",
-    targetRole: "Principal Solutions Architect & Director of Creative Technologies",
-    summary: "Highly motivated and results-driven technical architect with a track record of building complex distributed web systems using React, Node.js, Express, Go, MongoDB, Redis, PostgreSQL, and Docker while enforcing layout boundaries across 8 responsive breakpoints.",
+    designation: "Chief Executive Visual Effects Supervisor",
+    targetRole: "", // Empty to test placeholder
+    summary: "Highly motivated and driven technical architect with a track record of building complex distributed web systems.",
     ProfilePreviewUrl: ""
   },
   contactInfo: {
-    email: "alexander.von.hohenzollern-sigmaringen-braganza-iii@subdomain.verbose-domain-name-with-extreme-length.com",
-    phone: "+91 98765 43210",
-    location: "Hyderabad, Telangana, Republic of India, South Asia",
-    linkedIn: "https://linkedin.com/in/alexander-constantine-von-hohenzollern-sigmaringen-braganza-iii-9b8a7c6d5e",
-    github: "https://github.com/alexander-constantine-von-hohenzollern-sigmaringen-braganza-iii",
-    website: "https://subdomain.really-long-and-extremely-verbose-portfolio-domain-name-with-multiple-levels-of-nesting-and-extra-query-parameters.com/projects/resume-builder/visual-audit?session=abcdef1234567890"
+    email: "alexander@verbose-domain.com",
+    phone: "+91 98765-43210",
+    location: "Hyderabad, India",
+    linkedIn: "linkedin.com/in/alexander-constantine",
+    github: "github.com/alexander-constantine",
+    website: "" // Empty to test placeholder
   },
   workExperience: [
     {
@@ -28,88 +28,102 @@ const mockResume = {
       location: "Hyderabad Campus",
       startDate: "Jan 2023",
       endDate: "Present",
-      description: "Led a team of 15 engineers to rewrite core search index ranking pipelines, reducing latency by 45% and optimizing memory allocations.\nBuilt layout boundary systems that prevent any visual overflow of helper texts, URLs, and fields.\nMentored junior developers and designed internal microservice frameworks."
+      description: "Led a team of 15 engineers to rewrite core search index ranking pipelines.\nMentored junior developers and designed internal microservice frameworks."
     },
     {
-      company: "Meta Platforms Technologies Group",
-      role: "Senior Frontend Infrastructure Engineer",
-      location: "Remote, India",
-      startDate: "2020",
-      endDate: "2022",
-      description: "Developed internal UI component library used by 5,000+ internal tooling developers.\nImplemented automated screenshot visual validation testing across multiple mobile viewports."
-    },
-    {
-      company: "Microsoft Research Systems Division",
-      role: "Research Intern",
-      location: "Bangalore",
-      startDate: "Jan",
-      endDate: "Jun",
-      description: "Researched compiler optimization techniques for low-power edge computers."
+      company: "",
+      role: "",
+      location: "",
+      startDate: "",
+      endDate: "",
+      description: "" // Empty item to test placeholders
     }
   ],
   education: [
     {
-      degree: "Master of Technology (M.Tech) in Computer Science & Artificial Intelligence",
-      institution: "International Institute of Information Technology (IIIT)",
+      degree: "Master of Technology (M.Tech) in Computer Science",
+      institution: "International Institute of Information Technology",
       location: "Hyderabad",
       gpa: "9.8",
       startDate: "2018",
       endDate: "2020",
-      description: "Data Structures, Database Management Systems, Advanced Operating Systems, Distributed Consensus Protocols, Neural Networks."
+      description: "Data Structures, Database Management Systems."
     },
     {
-      degree: "Bachelor of Technology (B.Tech)",
-      institution: "St. Martin's Engineering College",
-      location: "Secunderabad",
-      gpa: "8.5",
-      startDate: "2014",
-      endDate: "2018",
-      description: "Computer Science Engineering coursework: Data Structures, Design & Analysis of Algorithms, Software Engineering."
+      degree: "",
+      institution: "",
+      location: "",
+      gpa: "",
+      startDate: "",
+      endDate: "",
+      description: "" // Empty item to test placeholders
     }
   ],
   skills: [
-    { "name": "React, Node.js, Express, Go, MongoDB, Redis, PostgreSQL, Docker, Kubernetes, AWS, WebRTC, TailwindCSS, Puppeteer, Selenium, Jenkins, Git", "progress": 95 }
+    { "name": "React, Node.js, Express, Go", "progress": 95 },
+    { "name": "", "progress": 0 } // Empty item to test placeholders
   ],
   projects: [
     {
-      title: "Artificial Intelligence Assisted Resume Builder with ATS Parser & Visual Validator",
-      description: "Designed and built an enterprise-grade resume builder featuring automated ATS scoring, real-time visual alignment, and PDF export with no card boundaries leaking out.",
-      github: "https://github.com/alexander/ai-resume-builder-ats-visual-validator-pipeline",
-      liveDemo: "https://ai-resume-builder.subdomain.verbose-domain-name-with-extreme-length.com"
+      title: "Artificial Intelligence Assisted Resume Builder",
+      description: "Designed and built an enterprise-grade resume builder featuring automated ATS scoring.",
+      github: "https://github.com/alexander/ai-resume-builder",
+      liveDemo: "https://ai-resume-builder.com"
+    },
+    {
+      title: "",
+      description: "",
+      github: "",
+      liveDemo: "" // Empty item to test placeholders
     }
   ],
   certifications: [
     {
-      "title": "Amazon Web Services (AWS) Certified Solutions Architect – Professional",
+      "title": "Amazon Web Services (AWS) Certified Solutions Architect",
       "issuer": "Amazon Web Services",
       "year": "March 2025",
-      "certificateUrl": "https://aws.amazon.com/verification/cert/9876543210-professional-architect-verification-system"
+      "certificateUrl": "https://aws.amazon.com/verification"
+    },
+    {
+      "title": "",
+      "issuer": "",
+      "year": "",
+      "certificateUrl": "" // Empty item to test placeholders
     }
   ],
   languages: [
-    { "name": "English, Telugu, Hindi, German", "progress": 90 }
+    { "name": "English, German", "progress": 90 },
+    { "name": "", "progress": 0 } // Empty item to test placeholders
   ],
   interests: [
     "Building open-source developer tooling",
-    "Competitive programming & algorithms design"
+    "" // Empty to test placeholder
   ],
   customSections: {
     publications: [
       {
-        title: "A Decoupled High-Throughput Consensus Architecture for Distributed Document Management & Parsing",
-        subtitle: "IEEE Journal of Artificial Intelligence Research & Systems",
+        title: "A Decoupled High-Throughput Consensus Architecture",
+        subtitle: "IEEE Journal of Artificial Intelligence",
         date: "January 2026",
-        authors: "Dr. Alexander-Constantine von Hohenzollern-Sigmaringen-Braganza III, Dr. Alan Turing",
-        abstract: "We present a decoupled architecture for parsing unstructured resume PDF documents and rendering them with pixel-perfect accuracy at runtime. Our system guarantees that no text strings or input cards exceed parent element boundaries, preventing horizontal scrolling completely.",
-        paperUrl: "https://arxiv.org/abs/2606.12345-decoupled-high-throughput-consensus-architecture-document-parsing"
+        authors: "Dr. Alexander-Constantine, Dr. Alan Turing",
+        abstract: "We present a decoupled architecture for parsing unstructured resume PDF documents.",
+        paperUrl: "https://arxiv.org/abs/2606.12345"
+      },
+      {
+        title: "",
+        subtitle: "",
+        date: "",
+        authors: "",
+        abstract: "",
+        paperUrl: "" // Empty item to test placeholders
       }
     ],
     volunteering: [
       {
-        title: "Lead Volunteer Coding Instructor & Curriculum Designer",
+        title: "Lead Volunteer Coding Instructor",
         subtitle: "Girls Who Code Hyderabad Chapter",
         date: "September 2024 - Present",
-        description: "Taught programming principles (Python, JavaScript, Git) to over 150 high school students."
+        description: "Taught programming principles."
       }
     ]
   },
@@ -231,16 +245,30 @@ const mockResume = {
     await page.goto('http://localhost:5173/resume/e2e-test-resume/edit', { waitUntil: 'networkidle2' });
     await page.waitForSelector('#resume-preview');
     
-    console.log('5. Performing visual captures...');
-    const viewports = [320, 360, 375, 390, 430, 768, 1024];
-    for (const width of viewports) {
-      console.log(`Auditing width: ${width}px`);
-      await page.setViewport({ width, height: 1400 });
-      await new Promise(resolve => setTimeout(resolve, 1500));
+    console.log('5. Clicking through sections and performing visual captures...');
+    const sections = ["Profile", "Contact", "Summary", "Experience", "Education", "Skills", "Projects", "Certifications", "Languages", "Publications"];
+    for (const section of sections) {
+      console.log(`Navigating to section: ${section}`);
       
-      const ssPath = path.join(screenshotsDir, `viewport_${width}_full.png`);
-      await page.screenshot({ path: ssPath, fullPage: true });
-      console.log(`Saved screenshot to ${ssPath}`);
+      await page.evaluate((secName) => {
+        const buttons = Array.from(document.querySelectorAll('.sidebar-btn'));
+        const targetBtn = buttons.find(b => b.innerText.trim().toLowerCase() === secName.toLowerCase());
+        if (targetBtn) {
+          targetBtn.click();
+        }
+      }, section);
+      
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      const widths = [375, 1024];
+      for (const width of widths) {
+        await page.setViewport({ width, height: 1400 });
+        await new Promise(resolve => setTimeout(resolve, 500));
+        
+        const ssPath = path.join(screenshotsDir, `section_${section.toLowerCase().replace(/\s+/g, '_')}_${width}.png`);
+        await page.screenshot({ path: ssPath, fullPage: true });
+        console.log(`Saved screenshot to ${ssPath}`);
+      }
     }
 
     console.log('6. Intercepting PDF generation triggering...');
