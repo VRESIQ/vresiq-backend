@@ -73,12 +73,15 @@ const resolveBrowserExecutable = async () => {
       deviceScaleFactor: 1
     });
 
-    // Emulate print media to use print-specific stylesheets and render clean layouts
-    await page.emulateMediaType('print');
-
     await page.setContent(htmlContent, {
       waitUntil: 'networkidle0'
     });
+
+    // Switch to print media only after the DOM has been mounted so print rules
+    // operate on the rendered resume instead of the initial empty document.
+    await page.emulateMediaType('print');
+
+    await page.waitForSelector('#resume-preview', { timeout: 10000 });
 
     // Wait for all images on the page to load completely to prevent layout shifts during PDF render
     await page.evaluate(async () => {
