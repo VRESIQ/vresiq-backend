@@ -135,7 +135,7 @@ const resolveBrowserExecutable = async () => {
         </div>
       ` : '<div></div>',
       margin: {
-        top: '40px',
+        top: '0px',
         bottom: '45px',   // Increased from 36px to ensure footer template has adequate space
         left: '0px',
         right: '0px'
