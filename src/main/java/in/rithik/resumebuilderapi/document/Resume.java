@@ -87,7 +87,15 @@ public class Resume {
         ats_lead,
         ats_intern,
         ats_experienced,
-        academic_cv
+        academic_cv,
+        // Added: newer frontend templates not previously in the enum.
+        // Missing entries caused normalizeTemplate() to fall back to template1
+        // on every save, permanently overwriting the user's chosen template.
+        engineer_ats,       // Frame
+        consulting_bcg,     // Summit
+        tech_faang,         // Atlas
+        harvard_ats,        // Stone
+        swiss_minimal       // Metro
     }
 
     @Data
