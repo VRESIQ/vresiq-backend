@@ -22,16 +22,6 @@ public class OAuthController {
     private final OAuthService oAuthService;
     private final UserRepository userRepository;
 
-    @PostMapping("/oauth/google")
-    public ResponseEntity<?> googleLogin(@RequestBody Map<String, String> body) {
-        String token = body.get("token");
-        if (token == null || token.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Token is required"));
-        }
-        AuthResponse response = oAuthService.loginOrRegisterGoogle(token);
-        return ResponseEntity.ok(response);
-    }
-
     @PostMapping("/phone/verify")
     public ResponseEntity<?> phoneVerify(@RequestBody Map<String, String> body) {
         String token = body.get("token");

@@ -29,41 +29,6 @@ public class OAuthService {
     private final JwtUtil jwtUtil;
     private final RestTemplate restTemplate = new RestTemplate();
 
-    public AuthResponse loginOrRegisterGoogle(String token) {
-        log.info("Verifying Google token");
-        try {
-            com.google.api.client.json.gson.GsonFactory jsonFactory = com.google.api.client.json.gson.GsonFactory.getDefaultInstance();
-            com.google.api.client.http.javanet.NetHttpTransport transport = new com.google.api.client.http.javanet.NetHttpTransport();
-            
-            String googleClientId = System.getenv("VITE_GOOGLE_CLIENT_ID");
-            if (googleClientId == null) {
-                googleClientId = System.getenv("GOOGLE_CLIENT_ID");
-            }
-            
-            com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier verifier = 
-                new com.google.api.client.googleapis.auth.oauth2.GoogleIdTokenVerifier.Builder(transport, jsonFactory)
-                    .setAudience(googleClientId != null ? java.util.Collections.singletonList(googleClientId) : java.util.Collections.emptyList())
-                    .build();
-
-            com.google.api.client.googleapis.auth.oauth2.GoogleIdToken idToken = verifier.verify(token);
-            if (idToken == null) {
-                throw new RuntimeException("Invalid Google cryptographic token");
-            }
-
-            com.google.api.client.googleapis.auth.oauth2.GoogleIdToken.Payload payload = idToken.getPayload();
-            String email = payload.getEmail();
-            String name = (String) payload.get("name");
-            String picture = (String) payload.get("picture");
-            String providerId = payload.getSubject();
-            return processSocialUser(email, name, picture, Provider.GOOGLE, providerId);
-        } catch (Exception e) {
-            log.error("Google ID Token verification failed: {}", e.getMessage());
-            throw new RuntimeException("Google token validation failed: " + e.getMessage());
-        }
-    }
-
-
-
     public AuthResponse loginOrRegisterPhone(String token, String phone) {
         log.info("Processing Phone OTP login with Firebase Admin SDK");
         try {
@@ -128,49 +93,6 @@ public class OAuthService {
                 .subscriptionPlan("basic")
                 .active(true)
                 .build();
-    }
-
-    private AuthResponse processSocialUser(String email, String name, String picture, Provider provider, String providerId) {
-        String normalizedEmail = email.toLowerCase().trim();
-        Optional<User> existingUserOpt = userRepository.findByEmail(normalizedEmail);
-
-        User user;
-        if (existingUserOpt.isPresent()) {
-            user = existingUserOpt.get();
-            log.info("Linking provider {} to existing user email: {}", provider, normalizedEmail);
-            if (user.getSocialProviders() == null) {
-                user.setSocialProviders(new HashMap<>());
-            }
-            user.getSocialProviders().put(provider.name().toLowerCase(), providerId);
-            if ((user.getProfileImageUrl() == null || user.getProfileImageUrl().isBlank()) && picture != null) {
-                user.setProfileImageUrl(picture);
-            }
-            user.setProvider(provider);
-            user.setProviderId(providerId);
-            user.setEmailVerified(true);
-            userRepository.save(user);
-        } else {
-            log.info("Creating new user via provider {}: {}", provider, normalizedEmail);
-            Map<String, String> socialProviders = new HashMap<>();
-            socialProviders.put(provider.name().toLowerCase(), providerId);
-
-            user = User.builder()
-                    .name(name)
-                    .email(normalizedEmail)
-                    .password(null)
-                    .profileImageUrl(picture)
-                    .avatarUrl(picture)
-                    .provider(provider)
-                    .providerId(providerId)
-                    .socialProviders(socialProviders)
-                    .emailVerified(true)
-                    .subscriptionPlan("basic")
-                    .active(true)
-                    .build();
-            userRepository.save(user);
-        }
-
-        return generateAuthResponse(user);
     }
 
     private AuthResponse generateAuthResponse(User user) {
