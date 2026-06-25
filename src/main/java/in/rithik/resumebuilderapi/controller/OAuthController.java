@@ -22,16 +22,7 @@ public class OAuthController {
     private final OAuthService oAuthService;
     private final UserRepository userRepository;
 
-    @PostMapping("/phone/verify")
-    public ResponseEntity<?> phoneVerify(@RequestBody Map<String, String> body) {
-        String token = body.get("token");
-        String phone = body.get("phone");
-        if (token == null || token.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Token is required"));
-        }
-        AuthResponse response = oAuthService.loginOrRegisterPhone(token, phone);
-        return ResponseEntity.ok(response);
-    }
+
 
     @GetMapping("/providers")
     public ResponseEntity<?> getProviders(Authentication authentication) {
