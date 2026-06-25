@@ -38,6 +38,9 @@ public class SecurityConfig {
     private final JwtAuthenticationFilter jwtAuthenticationFilter;
     private final JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint;
     private final RateLimitingFilter rateLimitingFilter;
+    private final in.rithik.resumebuilderapi.security.CustomOAuth2UserService customOAuth2UserService;
+    private final in.rithik.resumebuilderapi.security.CustomAuthenticationSuccessHandler customAuthenticationSuccessHandler;
+    private final in.rithik.resumebuilderapi.security.CustomAuthenticationFailureHandler customAuthenticationFailureHandler;
 
     @org.springframework.beans.factory.annotation.Value("${app.frontend.cors-origins}")
     private String frontendCorsOrigins;
@@ -75,13 +78,22 @@ public class SecurityConfig {
                                 "/api/auth/providers",
                                 "/api/verify/**",
                                 "/api/payment/webhook",
-                                "/actuator/**"
+                                "/actuator/**",
+                                "/login/oauth2/code/**",
+                                "/oauth2/authorization/**"
                         ).permitAll()
                         .requestMatchers("/api/admin/**").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
+                .oauth2Login(oauth2 -> oauth2
+                        .userInfoEndpoint(userInfo -> userInfo
+                                .userService(customOAuth2UserService)
+                        )
+                        .successHandler(customAuthenticationSuccessHandler)
+                        .failureHandler(customAuthenticationFailureHandler)
+                )
                 .sessionManagement(session ->
-                        session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)
+                        session.sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
                 )
                 .exceptionHandling(ex ->
                         ex.authenticationEntryPoint(jwtAuthenticationEntryPoint)
