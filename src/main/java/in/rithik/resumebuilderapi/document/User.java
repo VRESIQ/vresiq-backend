@@ -40,6 +40,13 @@ public class User {
     private LocalDateTime lastPasswordResetRequest;
 
     @lombok.Builder.Default
+    private Provider provider = Provider.LOCAL;
+    private String providerId;
+    private String phone;
+    private String avatarUrl;
+    private java.util.Map<String, String> socialProviders;
+
+    @lombok.Builder.Default
     private String role = "USER";
     @lombok.Builder.Default
     private boolean active = true;

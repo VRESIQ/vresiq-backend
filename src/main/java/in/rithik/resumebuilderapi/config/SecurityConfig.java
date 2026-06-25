@@ -70,6 +70,9 @@ public class SecurityConfig {
                                 "/api/auth/forgot-password",
                                 "/api/auth/reset-password",
                                 "/api/auth/refresh",
+                                "/api/auth/oauth/**",
+                                "/api/auth/phone/verify",
+                                "/api/auth/providers",
                                 "/api/verify/**",
                                 "/api/payment/webhook",
                                 "/actuator/**"
