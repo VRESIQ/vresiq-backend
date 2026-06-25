@@ -40,14 +40,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
             email = (String) attributes.get("email");
             name = (String) attributes.get("name");
             picture = (String) attributes.get("picture");
-        } else if (provider == Provider.MICROSOFT) {
-            email = (String) attributes.get("mail");
-            if (email == null) {
-                email = (String) attributes.get("userPrincipalName");
-            }
-            name = (String) attributes.get("displayName");
-        } else if (provider == Provider.APPLE) {
-            email = (String) attributes.get("email");
         }
 
         if (email == null) {
@@ -96,9 +88,6 @@ public class CustomOAuth2UserService extends DefaultOAuth2UserService {
         customAttributes.put("db_user_email", user.getEmail());
 
         String keyName = "email";
-        if (provider == Provider.MICROSOFT) {
-            keyName = "userPrincipalName";
-        }
 
         return new DefaultOAuth2User(
                 oAuth2User.getAuthorities(),

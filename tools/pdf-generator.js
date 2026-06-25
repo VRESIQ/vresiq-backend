@@ -73,15 +73,12 @@ const resolveBrowserExecutable = async () => {
       deviceScaleFactor: 1
     });
 
+    // Emulate print media to use print-specific stylesheets and render clean layouts
+    await page.emulateMediaType('print');
+
     await page.setContent(htmlContent, {
       waitUntil: 'networkidle0'
     });
-
-    // Switch to print media only after the DOM has been mounted so print rules
-    // operate on the rendered resume instead of the initial empty document.
-    await page.emulateMediaType('print');
-
-    await page.waitForSelector('#resume-preview', { timeout: 10000 });
 
     // Wait for all images on the page to load completely to prevent layout shifts during PDF render
     await page.evaluate(async () => {
@@ -114,28 +111,9 @@ const resolveBrowserExecutable = async () => {
       preferCSSPageSize: false,    // MUST be false: when true, Puppeteer ignores margin:{} and footerTemplate gets 0 space
       displayHeaderFooter: true,
       headerTemplate: '<span></span>',
-      footerTemplate: isFreePlan ? `
-        <div style="
-          font-family: 'Inter', 'Manrope', 'Plus Jakarta Sans', 'Helvetica Neue', Arial, sans-serif;
-          font-size: 8px;
-          font-weight: 400;
-          color: #999999;
-          width: 100%;
-          box-sizing: border-box;
-          text-align: center;
-          letter-spacing: 0px;
-          line-height: 1;
-          margin: 0;
-          display: block;
-          opacity: 0.35;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
-        ">
-          Made with VRESIQ
-        </div>
-      ` : '<div></div>',
+      footerTemplate: '<div></div>',  // Footer template not used - watermark is embedded in HTML via CSS positioning
       margin: {
-        top: '0px',
+        top: '40px',
         bottom: '45px',   // Increased from 36px to ensure footer template has adequate space
         left: '0px',
         right: '0px'

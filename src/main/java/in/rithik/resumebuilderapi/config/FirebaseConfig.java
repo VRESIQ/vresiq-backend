@@ -56,14 +56,8 @@ public class FirebaseConfig {
             if (credentialsStream != null) {
                 optionsBuilder.setCredentials(GoogleCredentials.fromStream(credentialsStream));
             } else {
-                log.warn("No Firebase credentials provided. Trying to initialize with Application Default Credentials.");
-                try {
-                    optionsBuilder.setCredentials(GoogleCredentials.getApplicationDefault());
-                } catch (Exception e) {
-                    log.error("Failed to load Application Default Credentials: {}", e.getMessage());
-                    // Create dummy/local options to prevent dependency injection failure, or skip initialize
-                    return;
-                }
+                log.warn("Firebase credentials are not configured. Phone OTP sign-in will not be available at runtime.");
+                return;
             }
 
             FirebaseApp.initializeApp(optionsBuilder.build());

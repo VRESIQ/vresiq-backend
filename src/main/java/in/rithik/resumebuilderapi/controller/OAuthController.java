@@ -32,28 +32,6 @@ public class OAuthController {
         return ResponseEntity.ok(response);
     }
 
-    @PostMapping("/oauth/microsoft")
-    public ResponseEntity<?> microsoftLogin(@RequestBody Map<String, String> body) {
-        String token = body.get("token");
-        if (token == null || token.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Token is required"));
-        }
-        AuthResponse response = oAuthService.loginOrRegisterMicrosoft(token);
-        return ResponseEntity.ok(response);
-    }
-
-    @PostMapping("/oauth/apple")
-    public ResponseEntity<?> appleLogin(@RequestBody Map<String, String> body) {
-        String token = body.get("token");
-        String email = body.get("email");
-        String name = body.get("name");
-        if (token == null || token.isBlank()) {
-            return ResponseEntity.badRequest().body(Map.of("message", "Token is required"));
-        }
-        AuthResponse response = oAuthService.loginOrRegisterApple(token, email, name);
-        return ResponseEntity.ok(response);
-    }
-
     @PostMapping("/phone/verify")
     public ResponseEntity<?> phoneVerify(@RequestBody Map<String, String> body) {
         String token = body.get("token");
@@ -77,8 +55,6 @@ public class OAuthController {
         Map<String, Object> response = new HashMap<>();
         Map<String, String> social = user.getSocialProviders();
         response.put("google", social != null && social.containsKey("google"));
-        response.put("microsoft", social != null && social.containsKey("microsoft"));
-        response.put("apple", social != null && social.containsKey("apple"));
         response.put("phone", social != null && social.containsKey("phone"));
         response.put("local", user.getPassword() != null);
         return ResponseEntity.ok(response);
