@@ -3,7 +3,7 @@ const fs = require('fs');
 const path = require('path');
 
 const FRONTEND_URL = 'http://localhost:4173';
-const OUTPUT_DIR = 'C:\\Users\\ACER\\.gemini\\antigravity\\brain\\ff16161c-c039-40a5-b655-7eefd1ef94e5';
+const OUTPUT_DIR = 'C:\\Users\\ACER\\.gemini\\antigravity\\brain\\9900b19e-f9e8-434d-9d65-290f4b05187f';
 
 if (!fs.existsSync(OUTPUT_DIR)) {
   fs.mkdirSync(OUTPUT_DIR, { recursive: true });
