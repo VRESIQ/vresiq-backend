@@ -77,6 +77,14 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                         return;
                     }
 
+                    if (!user.isActive()) {
+                        log.warn("Auth: User {} is suspended.", userId);
+                        response.setStatus(HttpServletResponse.SC_FORBIDDEN);
+                        response.setContentType("application/json");
+                        response.getWriter().write("{\"error\":\"ACCOUNT_SUSPENDED\",\"message\":\"Your account has been temporarily suspended by an administrator.\"}");
+                        return;
+                    }
+
                     java.util.List<org.springframework.security.core.GrantedAuthority> authorities =
                             java.util.List.of(new org.springframework.security.core.authority.SimpleGrantedAuthority("ROLE_" + user.getRole()));
 

@@ -151,7 +151,7 @@ public class AuthService {
         User user = userRepository.findByEmail(email)
                 .orElseThrow(() -> new UsernameNotFoundException("Email not registered. Please create an account."));
 
-        if (!user.isActive()) throw new RuntimeException("Your account has been disabled. Please contact support.");
+        if (!user.isActive()) throw new in.rithik.resumebuilderapi.exception.AccountSuspendedException("Your account has been temporarily suspended by an administrator.");
         if (!passwordEncoder.matches(request.getPassword(), user.getPassword())) {
             throw new UsernameNotFoundException("Incorrect password for this email.");
         }
@@ -182,6 +182,10 @@ public class AuthService {
         String email = jwtUtil.getUserIdFromToken(refreshToken);
         User user = userRepository.findByEmail(email.toLowerCase().trim())
                 .orElseThrow(() -> new RuntimeException("User not found"));
+
+        if (!user.isActive()) {
+            throw new in.rithik.resumebuilderapi.exception.AccountSuspendedException("Your account has been temporarily suspended by an administrator.");
+        }
 
         if (user.getRefreshTokenHash() == null || user.getRefreshTokenExpiresAt() == null) {
             throw new RuntimeException("Refresh token has been revoked.");

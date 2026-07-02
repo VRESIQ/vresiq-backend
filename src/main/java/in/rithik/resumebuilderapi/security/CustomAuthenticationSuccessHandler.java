@@ -39,6 +39,22 @@ public class CustomAuthenticationSuccessHandler extends SimpleUrlAuthenticationS
         
         User user = userRepository.findByEmail(email).orElseThrow(() -> new ServletException("User not found after social auth"));
         
+        if (!user.isActive()) {
+            log.warn("OAuth login failed: User {} is suspended.", user.getEmail());
+            String baseUrl = "http://localhost:5173";
+            if (frontendPublicUrl != null && !frontendPublicUrl.isBlank()) {
+                baseUrl = frontendPublicUrl.split(",")[0].trim();
+            }
+            if (baseUrl.endsWith("/")) {
+                baseUrl = baseUrl.substring(0, baseUrl.length() - 1);
+            }
+            String targetUrl = UriComponentsBuilder.fromUriString(baseUrl + "/login")
+                    .queryParam("error", "ACCOUNT_SUSPENDED")
+                    .build().toUriString();
+            getRedirectStrategy().sendRedirect(request, response, targetUrl);
+            return;
+        }
+        
         String accessToken = jwtUtil.generateToken(user.getEmail());
         String refreshToken = jwtUtil.generateRefreshToken(user.getEmail());
 

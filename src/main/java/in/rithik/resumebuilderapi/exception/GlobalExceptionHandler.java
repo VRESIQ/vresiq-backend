@@ -75,6 +75,15 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(HttpStatus.PAYLOAD_TOO_LARGE).body(response);
     }
 
+    @ExceptionHandler(AccountSuspendedException.class)
+    public ResponseEntity<Map<String, Object>> handleAccountSuspendedException(AccountSuspendedException ex) {
+        log.info("InsideGlobalExceptionHandler - handleAccountSuspendedException()");
+        Map<String, Object> response = new HashMap<>();
+        response.put("message", ex.getMessage());
+        response.put("error", "ACCOUNT_SUSPENDED");
+        return ResponseEntity.status(HttpStatus.FORBIDDEN).body(response);
+    }
+
     @ExceptionHandler(RuntimeException.class)
     public ResponseEntity<Map<String, Object>> handleRuntimeException(RuntimeException ex){
         log.error("InsideGlobalExceptionhandler - handleRuntimeException() exception occurred: ", ex);
