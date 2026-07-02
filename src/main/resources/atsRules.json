@@ -1,0 +1,189 @@
+{
+  "_comment": "Single source of truth for all ATS scoring constants. Both the frontend (atsScorer.js) and backend (RefineService.java) read from this file. Never hardcode these values in either language adapter. Any change here automatically applies to both engines.",
+
+  "thresholds": {
+    "minSummaryLen": 80,
+    "minExperienceDescLen": 45,
+    "minProjectDescLen": 35,
+    "tooFewSkillsCount": 5,
+    "tooManyInterestsCount": 6,
+    "maxKeywordDisplay": 8
+  },
+
+  "scoreBands": {
+    "strong": 85,
+    "good": 70,
+    "moderate": 50
+  },
+
+  "deductions": {
+    "missingName": 6,
+    "missingDesignation": 6,
+    "missingSummary": 12,
+    "shortSummary": 6,
+    "summaryNoMetric": 3,
+    "summaryFiller": 3,
+    "missingEmail": 8,
+    "invalidEmail": 6,
+    "missingPhone": 5,
+    "invalidPhone": 4,
+    "missingLocation": 3,
+    "invalidUrl": 2,
+    "missingExperience": 18,
+    "missingCompany": 4,
+    "missingRole": 4,
+    "missingStartDate": 3,
+    "missingEndDate": 3,
+    "invalidStartDate": 2,
+    "invalidEndDate": 2,
+    "dateOrder": 5,
+    "missingExperienceDescription": 8,
+    "shortDescription": 5,
+    "missingActionVerb": 3,
+    "missingMetric": 5,
+    "passiveVoice": 4,
+    "fillerWord": 3,
+    "missingEducation": 6,
+    "missingDegree": 4,
+    "missingInstitution": 4,
+    "missingSkills": 12,
+    "tooFewSkills": 5,
+    "blankSkill": 4,
+    "duplicateSkill": 2,
+    "missingProgress": 1,
+    "invalidProgress": 1,
+    "missingProjects": 5,
+    "missingProjectTitle": 4,
+    "missingProjectDescription": 5,
+    "missingCertTitle": 3,
+    "missingCertIssuer": 2,
+    "missingCertYear": 1,
+    "invalidYear": 2,
+    "yearOutOfRange": 2,
+    "blankLanguage": 2,
+    "duplicateLanguage": 1,
+    "blankInterest": 1,
+    "duplicateInterest": 1,
+    "tooManyInterests": 1,
+    "profilePhotoParseRisk": 4,
+    "decorativeHeader": 3,
+    "sectionIcons": 3,
+    "sectionNumbers": 1,
+    "decorativeDivider": 1,
+    "visualProgress": 1,
+    "customFont": 1,
+    "roleCategoryUnclear": 2,
+    "keywordGapMin": 4,
+    "keywordGapMax": 18
+  },
+
+  "templateRisk": {
+    "template2": 6,
+    "template3": 3,
+    "premium1": 3,
+    "premium2": 2,
+    "premium3": 6,
+    "premium5": 3,
+    "premium6": 8,
+    "premium7": 6,
+    "premium8": 8,
+    "premium9": 2,
+    "premium10": 4
+  },
+
+  "templateNames": {
+    "template1": "Classic",
+    "template2": "Side",
+    "template3": "Banner",
+    "premium1": "Timeline",
+    "premium2": "Executive",
+    "premium3": "Compact",
+    "premium4": "Minimal",
+    "premium5": "Accent",
+    "premium6": "Split",
+    "premium7": "Cards",
+    "premium8": "Graph",
+    "premium9": "Centered",
+    "premium10": "Tech",
+    "consulting_bcg": "Summit",
+    "tech_faang": "Atlas",
+    "harvard_ats": "Stone",
+    "swiss_minimal": "Metro",
+    "engineer_ats": "Frame",
+    "ats_classic": "Basic",
+    "ats_entry": "Edge",
+    "ats_senior": "Serif",
+    "ats_lead": "Lead",
+    "ats_intern": "Campus",
+    "ats_experienced": "Prime"
+  },
+
+  "categories": {
+    "software engineer": [
+      "Java", "Python", "JavaScript", "TypeScript", "React", "Spring Boot",
+      "REST API", "Microservices", "Docker", "Kubernetes", "CI/CD",
+      "Git", "SQL", "MongoDB", "AWS", "unit testing", "Agile", "Scrum",
+      "design patterns", "code review", "system design"
+    ],
+    "frontend developer": [
+      "React", "Vue", "Angular", "JavaScript", "TypeScript", "CSS", "HTML",
+      "responsive design", "Webpack", "Vite", "performance optimization",
+      "accessibility", "cross-browser", "Git", "REST API", "Figma"
+    ],
+    "backend developer": [
+      "Java", "Node.js", "Python", "REST API", "GraphQL", "SQL", "PostgreSQL",
+      "MongoDB", "Redis", "Docker", "Kubernetes", "AWS", "authentication",
+      "authorization", "JWT", "microservices", "Spring Boot", "Express.js"
+    ],
+    "data analyst": [
+      "SQL", "Python", "Excel", "Tableau", "Power BI", "data visualization",
+      "statistical analysis", "ETL", "pandas", "NumPy", "data cleaning",
+      "A/B testing", "dashboards", "KPIs", "business intelligence"
+    ],
+    "data scientist": [
+      "Python", "R", "machine learning", "deep learning", "TensorFlow",
+      "PyTorch", "scikit-learn", "SQL", "statistics", "data preprocessing",
+      "feature engineering", "model deployment", "Jupyter", "NLP", "pandas"
+    ],
+    "product manager": [
+      "product roadmap", "user stories", "Agile", "Scrum", "stakeholder",
+      "KPIs", "OKRs", "market research", "user research", "A/B testing",
+      "Jira", "Confluence", "prioritization", "go-to-market", "PRD",
+      "cross-functional", "data-driven"
+    ],
+    "designer": [
+      "Figma", "Sketch", "Adobe XD", "Photoshop", "Illustrator", "UI", "UX",
+      "wireframes", "prototypes", "usability testing", "design systems",
+      "user research", "accessibility", "responsive design", "typography",
+      "color theory", "Zeplin"
+    ],
+    "devops engineer": [
+      "Docker", "Kubernetes", "CI/CD", "Jenkins", "GitHub Actions", "AWS",
+      "Azure", "GCP", "Terraform", "Ansible", "monitoring", "Prometheus",
+      "Grafana", "Linux", "bash scripting", "infrastructure as code",
+      "reliability", "SRE", "load balancing"
+    ],
+    "marketing": [
+      "SEO", "SEM", "Google Analytics", "content marketing", "social media",
+      "email marketing", "campaign", "conversion rate", "ROI", "CRM",
+      "Salesforce", "HubSpot", "A/B testing", "brand strategy", "lead generation",
+      "digital marketing", "copywriting"
+    ],
+    "finance": [
+      "financial modeling", "Excel", "PowerPoint", "valuation", "DCF",
+      "financial analysis", "budgeting", "forecasting", "P&L", "balance sheet",
+      "ROI", "KPIs", "Bloomberg", "CFA", "compliance", "audit", "risk management"
+    ],
+    "project manager": [
+      "project planning", "stakeholder management", "risk management",
+      "Agile", "Scrum", "waterfall", "MS Project", "Jira", "PMP",
+      "budget management", "resource allocation", "milestone", "deliverables",
+      "cross-functional", "status reporting"
+    ],
+    "healthcare": [
+      "patient care", "clinical", "EMR", "EHR", "HIPAA", "diagnosis",
+      "treatment", "medication", "healthcare", "medical", "nursing",
+      "patient assessment", "documentation", "compliance", "telehealth"
+    ]
+  }
+}

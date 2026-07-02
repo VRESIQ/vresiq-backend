@@ -61,6 +61,21 @@ public class Resume {
 
     private Map<String, List<CustomSectionEntry>> customSections;
 
+    /**
+     * Last authoritative ATS score confirmed by the backend RefineService.
+     * Populated whenever POST /api/ai/refine/{id} succeeds. Sent to the
+     * frontend inside the resume payload so the badge can hydrate instantly
+     * on page load without a separate network call.
+     */
+    private Integer lastAtsScore;
+
+    /**
+     * Job category detected from the resume designation at the last ATS run.
+     * E.g. "software engineer", "frontend developer". Used by the badge for
+     * role display before the user clicks Run ATS Check.
+     */
+    private String lastAtsCategory;
+
     @CreatedDate
     private LocalDateTime createdAt;
 
