@@ -29,6 +29,7 @@ public class PaymentService {
     private final PaymentRepository paymentRepository;
     private final AuthService  authService;
     private final UserRepository userRepository;
+    private final SubscriptionService subscriptionService;
 
     @Value("${razorpay.key.id}")
     private String razorpayKeyId;
@@ -101,11 +102,7 @@ public class PaymentService {
     }
 
     private void upgradeUserSubscription(String userId, String planType) {
-        User existingUser = userRepository.findById(userId)
-                        .orElseThrow(()-> new UsernameNotFoundException("User not found"));
-        existingUser.setSubscriptionPlan(planType);
-        userRepository.save(existingUser);
-        log.info("User {} upgraded to {} plan", userId, planType);
+        subscriptionService.updateSubscription(userId, planType);
     }
 
     public List<Payment> getUserPayments(Object principal) {

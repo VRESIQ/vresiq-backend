@@ -1,55 +1,47 @@
 package in.rithik.resumebuilderapi.service;
 
 import in.rithik.resumebuilderapi.document.User;
+import in.rithik.resumebuilderapi.repository.UserRepository;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.data.mongodb.core.MongoTemplate;
-import org.springframework.data.mongodb.core.mapping.event.BeforeConvertCallback;
-import org.springframework.stereotype.Component;
+import org.springframework.security.core.userdetails.UsernameNotFoundException;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
-@Component
+@Service
+@RequiredArgsConstructor
 @Slf4j
-public class UserSubscriptionUpgradeListener implements BeforeConvertCallback<User> {
+public class SubscriptionService {
 
-    private final MongoTemplate mongoTemplate;
+    private final UserRepository userRepository;
     private final EmailService emailService;
-    private final String frontendPublicUrl;
 
-    @Autowired
-    public UserSubscriptionUpgradeListener(
-            MongoTemplate mongoTemplate,
-            EmailService emailService,
-            @Value("${FRONTEND_PUBLIC_URL:}") String frontendPublicUrl) {
-        this.mongoTemplate = mongoTemplate;
-        this.emailService = emailService;
-        this.frontendPublicUrl = frontendPublicUrl;
+    @Value("${FRONTEND_PUBLIC_URL:}")
+    private String frontendPublicUrl;
+
+    public User updateSubscription(String userId, String newPlan) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new UsernameNotFoundException("User not found: " + userId));
+        return updateSubscription(user, newPlan);
     }
 
-    @Override
-    public User onBeforeConvert(User user, String collection) {
-        if (user.getId() == null) {
-            return user;
-        }
+    public User updateSubscription(User user, String newPlan) {
+        String oldPlan = user.getSubscriptionPlan();
+        
+        boolean wasPremium = "premium".equalsIgnoreCase(oldPlan);
+        boolean isPremiumNow = "premium".equalsIgnoreCase(newPlan);
 
-        // 1. Fetch current database state to check the transition
-        User existingUser = mongoTemplate.findById(user.getId(), User.class);
-        if (existingUser == null) {
-            return user;
-        }
+        user.setSubscriptionPlan(newPlan);
+        User savedUser = userRepository.save(user);
+        log.info("Subscription updated for user {}: {} -> {}", user.getId(), oldPlan, newPlan);
 
-        boolean wasPremium = "premium".equalsIgnoreCase(existingUser.getSubscriptionPlan());
-        boolean isPremiumNow = "premium".equalsIgnoreCase(user.getSubscriptionPlan());
-
-        // Trigger only when transitioning from Basic (or any non-premium) to Premium
         if (!wasPremium && isPremiumNow) {
-            log.info("Subscription upgrade transition detected for user {}: {} -> {}", user.getId(), existingUser.getSubscriptionPlan(), user.getSubscriptionPlan());
-            
+            log.info("Transition to premium detected for user {}. Sending welcome email.", user.getId());
             try {
-                sendUpgradeEmail(user);
+                sendUpgradeEmail(savedUser);
                 log.info("Successfully sent Premium upgrade email to user: {}", user.getEmail());
             } catch (Exception e) {
                 // Email delivery failure must NOT roll back the subscription update
@@ -57,7 +49,7 @@ public class UserSubscriptionUpgradeListener implements BeforeConvertCallback<Us
             }
         }
 
-        return user;
+        return savedUser;
     }
 
     private void sendUpgradeEmail(User user) throws Exception {

@@ -25,6 +25,7 @@ public class AdminService {
     private final ResumeRepository resumeRepository;
     private final PaymentRepository paymentRepository;
     private final UserAiStatsRepository statsRepository;
+    private final SubscriptionService subscriptionService;
 
     public Map<String, Object> getAnalytics() {
         long totalUsers = userRepository.count();
@@ -105,5 +106,9 @@ public class AdminService {
 
     public List<UserAiStats> getAiStats() {
         return statsRepository.findAll();
+    }
+
+    public User updateSubscription(String userId, String plan) {
+        return subscriptionService.updateSubscription(userId, plan);
     }
 }

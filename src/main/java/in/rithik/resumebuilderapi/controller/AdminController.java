@@ -61,4 +61,9 @@ public class AdminController {
     public ResponseEntity<List<UserAiStats>> getAiStats() {
         return ResponseEntity.ok(adminService.getAiStats());
     }
+
+    @PutMapping("/users/{userId}/subscription")
+    public ResponseEntity<User> updateSubscription(@PathVariable String userId, @RequestParam String plan) {
+        return ResponseEntity.ok(adminService.updateSubscription(userId, plan));
+    }
 }
