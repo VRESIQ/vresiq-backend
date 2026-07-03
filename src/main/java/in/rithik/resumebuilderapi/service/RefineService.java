@@ -10,6 +10,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -96,31 +97,23 @@ public class RefineService {
         List<Resume.Language>       languages      = list(resume.getLanguages());
         List<String>                interests      = list(resume.getInterests());
 
-        deductions += checkProfile(profile, issues);
+        String stage = detectCareerStage(resume);
+
+        deductions += checkProfile(profile, issues, stage);
         deductions += checkContact(contact, issues);
-        deductions += checkExperience(experience, issues);
+        deductions += checkExperience(experience, issues, resume);
         deductions += checkEducation(education, issues);
         deductions += checkSkills(skills, issues);
-        deductions += checkProjects(projects, experience, issues);
+        deductions += checkProjects(projects, experience, issues, stage);
         deductions += checkCertifications(certifications, issues);
         deductions += checkLanguages(languages, issues);
         deductions += checkInterests(interests, issues);
         deductions += checkPresentation(resume, profile, issues);
 
-        String category = AtsKeywords.detectCategory(profile.getDesignation());
-        if (category != null) {
-            deductions += checkKeywords(resume, category, issues);
-        } else {
-            if (hasText(profile.getDesignation())) {
-                int pts = CFG.d("roleCategoryUnclear");
-                issues.add(issue(
-                    "role_category_unclear", "Profile > Designation",
-                    profile.getDesignation(),
-                    "Use a standard target title such as Software Engineer, Product Manager, Designer, Data Analyst, or DevOps Engineer so keyword checks can be role-aware.",
-                    "tip", pts
-                ));
-                deductions += pts;
-            }
+        String category = AtsKeywords.detectCategory(profile.getDesignation(), resume);
+        boolean isMatchedRole = category != null && !"General Resume".equals(category);
+        if (isMatchedRole) {
+            deductions += checkKeywords(resume, category.toLowerCase(Locale.ROOT), issues, stage);
         }
 
         // Identical formula to atsScorer.js
@@ -142,27 +135,41 @@ public class RefineService {
 
     // ─── Section checkers ─────────────────────────────────────────────────────
 
-    private int checkProfile(Resume.ProfileInfo profile, List<RefineSuggestion> issues) {
+    private int checkProfile(Resume.ProfileInfo profile, List<RefineSuggestion> issues, String stage) {
         int pts = 0;
-        pts += requireText(issues, "missing_name",        "Profile > Full name",   profile.getFullName(),    CFG.d("missingName"),        "Add your full legal or professional name. ATS records need a clear candidate name.");
-        pts += requireText(issues, "missing_designation", "Profile > Designation", profile.getDesignation(), CFG.d("missingDesignation"), "Add a target role title. This anchors the resume and enables role-specific keyword checks.");
+        pts += requireText(issues, "missing_name",        "Profile > Full name",   profile.getFullName(),    CFG.d("missingName"),        "Add your professional or legal name at the top of your resume. ATS systems use this identifier to create your candidate profile.");
+        pts += requireText(issues, "missing_designation", "Profile > Designation", profile.getDesignation(), CFG.d("missingDesignation"), "Add a target designation title. This anchors your resume in the database and enables role-based keywords matching.");
 
         String summary = safe(profile.getSummary());
         if (!hasText(summary)) {
-            pts += add(issues, "missing_summary", "Profile > Summary", "", CFG.d("missingSummary"),
-                "Add a 2-4 sentence summary with target role, years or scope, strongest skills, and measurable impact.", "error");
+            String missingDesc = "Add a 2-4 sentence summary with target role, strengths, and measurable impact.";
+            if ("Student".equals(stage)) {
+                missingDesc = "To stand out as a student, add academic projects, certifications, internships, hackathons, or measurable project outcomes to your summary.";
+            } else if ("Fresher".equals(stage)) {
+                missingDesc = "As a fresher, showcase your internships, core technical strengths, and final-year project impact in your summary.";
+            } else {
+                missingDesc = "For experienced roles, add quantified business impact, leadership scope, users supported, or performance metrics.";
+            }
+            pts += add(issues, "missing_summary", "Profile > Summary", "", CFG.d("missingSummary"), missingDesc, "error");
         } else {
             if (summary.length() < T.getMinSummaryLen()) {
                 pts += add(issues, "short_summary", "Profile > Summary", summary, CFG.d("shortSummary"),
-                    "Expand the summary to at least 80 characters with role, strengths, and impact.", "warning");
+                    "Expand your summary to at least 80 characters. Describe your primary strengths, target role, and highest value achievement.", "warning");
             }
             if (!HAS_METRIC.matcher(summary).find()) {
-                pts += add(issues, "summary_no_metric", "Profile > Summary", trim(summary, 120), CFG.d("summaryNoMetric"),
-                    "Add one concrete signal, such as years of experience, users supported, revenue, performance, or team size.", "tip");
+                String suggestion = "Add one concrete metric, such as users supported, team size, budget managed, or project outcomes.";
+                if ("Student".equals(stage)) {
+                    suggestion = "To stand out as a student, add academic project outcomes, certifications, hackathon rankings, or GPA to your summary.";
+                } else if ("Fresher".equals(stage)) {
+                    suggestion = "As a fresher, showcase your internships, core technical strengths, or final-year project outcomes in your summary.";
+                } else {
+                    suggestion = "For experienced roles, add quantified business impact, users supported, revenue, or system performance metrics to your summary.";
+                }
+                pts += add(issues, "summary_no_metric", "Profile > Summary", trim(summary, 120), CFG.d("summaryNoMetric"), suggestion, "tip");
             }
             if (FILLER_WORDS.matcher(summary).find()) {
                 pts += add(issues, "summary_filler", "Profile > Summary", firstMatch(FILLER_WORDS, summary), CFG.d("summaryFiller"),
-                    "Replace vague wording with a specific strength or outcome.", "warning");
+                    "Replace vague buzzwords (like 'hard-working' or 'passionate') with concrete achievements or technical skills.", "warning");
             }
         }
         return pts;
@@ -194,10 +201,15 @@ public class RefineService {
         return pts;
     }
 
-    private int checkExperience(List<Resume.WorkExperience> experience, List<RefineSuggestion> issues) {
+    private int checkExperience(List<Resume.WorkExperience> experience, List<RefineSuggestion> issues, Resume resume) {
         if (experience.isEmpty()) {
+            boolean hasInternships = resume.getCustomSections() != null && resume.getCustomSections().containsKey("internships") && !resume.getCustomSections().get("internships").isEmpty();
+            boolean hasProjects = resume.getProjects() != null && !resume.getProjects().isEmpty();
+            if (hasInternships || hasProjects) {
+                return 0; // Bypass missing experience penalty if they have projects or internships
+            }
             return add(issues, "missing_experience", "Experience", "", CFG.d("missingExperience"),
-                "Add at least one role, internship, freelance job, or substantial project-style experience.", "error");
+                "Add at least one professional role, internship, or technical project to demonstrate hands-on application of your skills.", "error");
         }
         int pts = 0;
         for (int i = 0; i < experience.size(); i++) {
@@ -255,20 +267,32 @@ public class RefineService {
                     "Remove the blank skill row or enter a specific skill name.", "error");
                 continue;
             }
-            String normalized = name.toLowerCase(Locale.ROOT);
+            String normalized = normalizeSkillName(name);
             if (!seen.add(normalized)) {
                 pts += add(issues, "duplicate_skill", label + " > Name", name, CFG.d("duplicateSkill"),
-                    "Remove duplicate skills. Keep one clear entry per skill.", "tip");
+                    "Remove duplicate skill listing: \"" + name + "\". Keep one clear normalized entry per skill to maintain a clean layout.", "tip");
             }
             pts += checkProgress(skill.getProgress(), label + " > Proficiency", issues);
         }
         return pts;
     }
 
-    private int checkProjects(List<Resume.Project> projects, List<Resume.WorkExperience> experience, List<RefineSuggestion> issues) {
+    private String normalizeSkillName(String name) {
+        String lower = name.trim().toLowerCase(Locale.ROOT);
+        if ("js".equals(lower) || "javascript".equals(lower)) return "javascript";
+        if ("ts".equals(lower) || "typescript".equals(lower)) return "typescript";
+        if ("spring".equals(lower) || "spring boot".equals(lower) || "springboot".equals(lower)) return "spring boot";
+        return lower;
+    }
+
+    private int checkProjects(List<Resume.Project> projects, List<Resume.WorkExperience> experience, List<RefineSuggestion> issues, String stage) {
+        boolean isSeniorOrLeadOrManager = "Senior".equals(stage) || "Lead".equals(stage) || "Manager".equals(stage);
+        if (isSeniorOrLeadOrManager && experience.size() >= 2) {
+            return 0; // Never ask for projects if strong experience exists for seniors
+        }
         if (projects.isEmpty() && experience.size() <= 1) {
             return add(issues, "missing_projects", "Projects", "", CFG.d("missingProjects"),
-                "Add one or two strong projects if your experience section is light. Include title, tools, and outcome.", "warning");
+                "Add one or two strong projects to showcase hands-on work if your experience is light.", "warning");
         }
         int pts = 0;
         for (int i = 0; i < projects.size(); i++) {
@@ -397,7 +421,7 @@ public class RefineService {
         return pts;
     }
 
-    private int checkKeywords(Resume resume, String category, List<RefineSuggestion> issues) {
+    private int checkKeywords(Resume resume, String category, List<RefineSuggestion> issues, String stage) {
         List<String> keywords = AtsKeywords.getCategoryKeywords().get(category);
         if (keywords == null || keywords.isEmpty()) return 0;
         String fullText = allText(resume).toLowerCase(Locale.ROOT);
@@ -406,13 +430,20 @@ public class RefineService {
             if (!fullText.contains(keyword.toLowerCase(Locale.ROOT))) missing.add(keyword);
         }
         if (missing.isEmpty()) return 0;
+
+        missing = filterMissingKeywords(missing, fullText, category, stage);
+        if (missing.isEmpty()) return 0;
+
         double missRatio = (double) missing.size() / keywords.size();
         int pts = Math.max(CFG.d("keywordGapMin"), (int) Math.round(CFG.d("keywordGapMax") * missRatio));
         List<String> top = missing.subList(0, Math.min(T.getMaxKeywordDisplay(), missing.size()));
+        
+        String suggestion = "Including key technical terms for a " + category + " role helps parser matching. If you have experience with these adjacent concepts, consider adding them to your skills or project descriptions: " + String.join(", ", top) + ". Otherwise, focus on clarifying your core strengths.";
+
         issues.add(issue(
             "keyword_gap", "Role keywords",
             "Missing: " + String.join(", ", top),
-            "For a " + category + " role, add only the missing keywords you genuinely have experience with: " + String.join(", ", top) + ".",
+            suggestion,
             pts >= 10 ? "warning" : "tip",
             pts
         ));
@@ -486,16 +517,221 @@ public class RefineService {
         return add(issues, type, section, "", points, fix, points >= 5 ? "error" : "warning");
     }
 
+    private String formatRecruiterSuggestion(String type, String suggestion) {
+        if ("keyword_gap".equals(type)) {
+            return "Reason: Key technical role keywords are missing.\nWhy it matters: ATS algorithms utilize keyword frequencies to rank candidates.\nActionable improvement: " + suggestion + "\nRecruiter impact: Boosts search query match scores and technical indexing.\nExample: Include missing keywords in relevant project descriptions.";
+        }
+        if (suggestion != null && suggestion.contains("Reason:")) return suggestion;
+        
+        Map<String, RecruiterItem> formatted = new HashMap<>();
+        formatted.put("missing_name", new RecruiterItem(
+            "Full name is missing from the resume header.",
+            "ATS parsers require a clear name identifier to create and index a candidate profile.",
+            "Add your full legal or professional name at the very top of the page in a large, readable font.",
+            "Allows recruiters to instantly find your candidate record and index your application.",
+            "John Doe"
+        ));
+        formatted.put("missing_designation", new RecruiterItem(
+            "Target role designation is missing.",
+            "ATS systems and recruiters check this designation to map your profile to open roles.",
+            "Add a target role title matching your career goal directly under your name.",
+            "Aligns your resume with automated filters and recruiter role categories.",
+            "Software Engineer"
+        ));
+        formatted.put("missing_summary", new RecruiterItem(
+            "Professional summary is missing.",
+            "A summary provides a high-level overview of your career trajectory and key value before recruiters dig into detail.",
+            "Add a 2-4 sentence summary summarizing your target role, top strengths, and highest measurable impact.",
+            "Reduces screening time and increases immediate engagement.",
+            "Result-driven Software Engineer with 4 years of experience building high-scale Java APIs. Reduced latency by 20%."
+        ));
+        formatted.put("summary_no_metric", new RecruiterItem(
+            "Your professional summary lacks quantifiable metrics or outcomes.",
+            "Recruiters evaluate candidate strength using measurable achievements, not just static task lists.",
+            "Add at least one numerical metric (e.g. team size, user count, optimization percentage, hackathon rank).",
+            "Boosts credibility and demonstrates results-oriented work habits.",
+            "Optimized SQL database indexing, reducing query runtimes by 30%."
+        ));
+        formatted.put("missing_email", new RecruiterItem(
+            "Email address is missing.",
+            "Email is the primary index contact key for automated system communications and scheduler integrations.",
+            "Add a clean, professional email address to your header contact block.",
+            "Enables instant automated interview invitations and follow-ups.",
+            "alex.dev@gmail.com"
+        ));
+        formatted.put("missing_phone", new RecruiterItem(
+            "Phone contact is missing.",
+            "Recruiting teams use phone numbers for initial screeners and fast-track communications.",
+            "Add your mobile phone number including country code to your header.",
+            "Accelerates screening and scheduling touchpoints.",
+            "+1 555-0100"
+        ));
+        formatted.put("missing_location", new RecruiterItem(
+            "Candidate location is missing.",
+            "ATS systems filter applications by region, tax jurisdiction, or relocation flags.",
+            "Add your city and state/country to the contact header.",
+            "Prevents automatic rejection by geographic routing rules.",
+            "Boston, MA"
+        ));
+        formatted.put("missing_experience", new RecruiterItem(
+            "No work experience or project experience is detected.",
+            "ATS and recruiters look for proof of applied knowledge through jobs, projects, or internships.",
+            "Add professional experience, custom internships, or capstone projects to show hands-on work.",
+            "Fulfills the core requirement for technical validation.",
+            "Add a section listing your capstone software project or technical internship."
+        ));
+        formatted.put("missing_skills", new RecruiterItem(
+            "Skills section is missing or empty.",
+            "Recruiters use skills sections to filter candidates on target keyword combinations.",
+            "Add 8-12 core hard skills matching your target career role.",
+            "Improves keyword relevance matching in search queries.",
+            "Java, Spring Boot, React, SQL, Git, Docker"
+        ));
+        formatted.put("duplicate_skill", new RecruiterItem(
+            "Duplicate or redundant skills detected.",
+            "Listing the same skill multiple times (e.g. JS and JavaScript) looks disorganized and wastes space.",
+            "Consolidate duplicate listings into one standard textual name.",
+            "Shows professional attention to detail and saves valuable layout space.",
+            "Consolidate 'JS' and 'JavaScript' into one entry: 'JavaScript'."
+        ));
+
+        RecruiterItem item = formatted.get(type);
+        if (item != null) {
+            return "Reason: " + item.reason + "\nWhy it matters: " + item.why + 
+                   "\nActionable improvement: " + item.action + "\nRecruiter impact: " + item.impact + 
+                   "\nExample: " + item.example;
+        }
+
+        return "Reason: " + suggestion + 
+               "\nWhy it matters: Helps maintain layout quality, ATS readability, and recruiter compliance." + 
+               "\nActionable improvement: Adjust this section to use clean text, valid URLs, or clear dates." + 
+               "\nRecruiter impact: Reduces manual screening friction." + 
+               "\nExample: Verify section completeness.";
+    }
+
+    private static class RecruiterItem {
+        String reason;
+        String why;
+        String action;
+        String impact;
+        String example;
+
+        RecruiterItem(String reason, String why, String action, String impact, String example) {
+            this.reason = reason;
+            this.why = why;
+            this.action = action;
+            this.impact = impact;
+            this.example = example;
+        }
+    }
+
     private int add(List<RefineSuggestion> issues, String type, String section, String original, int points, String suggestion, String severity) {
         issues.add(issue(type, section, original, suggestion, severity, points));
         return points;
     }
 
     private RefineSuggestion issue(String type, String section, String original, String suggestion, String severity, int points) {
+        String formatted = formatRecruiterSuggestion(type, suggestion);
         return RefineSuggestion.builder()
             .type(type).section(section).original(original)
-            .suggestion(suggestion).severity(severity).points(points)
+            .suggestion(formatted).severity(severity).points(points)
             .build();
+    }
+
+    private String detectCareerStage(Resume resume) {
+        String designation = safe(resume.getProfileInfo() != null ? resume.getProfileInfo().getDesignation() : "").toLowerCase(Locale.ROOT);
+        String summary = safe(resume.getProfileInfo() != null ? resume.getProfileInfo().getSummary() : "").toLowerCase(Locale.ROOT);
+
+        boolean isStudentTitle = designation.contains("student") || designation.contains("intern") || 
+                                 designation.contains("undergrad") || designation.contains("candidate");
+        
+        boolean hasFutureEducation = false;
+        if (resume.getEducation() != null) {
+            for (Resume.Education edu : resume.getEducation()) {
+                String end = safe(edu.getEndDate()).toLowerCase(Locale.ROOT);
+                if (end.contains("present") || end.contains("expected")) {
+                    hasFutureEducation = true;
+                    break;
+                }
+                String[] parts = end.trim().split("\\s+");
+                if (parts.length == 2 && parts[1].matches("\\d{4}")) {
+                    int year = Integer.parseInt(parts[1]);
+                    if (year >= CURRENT_YEAR) {
+                        hasFutureEducation = true;
+                        break;
+                    }
+                } else if (end.matches("\\d{4}")) {
+                    int year = Integer.parseInt(end);
+                    if (year >= CURRENT_YEAR) {
+                        hasFutureEducation = true;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (isStudentTitle || hasFutureEducation) return "Student";
+        if (designation.contains("fresher") || designation.contains("graduate")) return "Fresher";
+        if (designation.contains("manager") || designation.contains("director") || designation.contains("vp") || 
+            designation.contains("head") || designation.contains("pm")) return "Manager";
+        if (designation.contains("lead") || designation.contains("coordinator")) return "Lead";
+        if (designation.contains("senior") || designation.contains("sr.") || designation.contains("architect") || 
+            designation.contains("principal")) return "Senior";
+        if (designation.contains("junior") || designation.contains("jr.")) return "Junior";
+
+        int expCount = resume.getWorkExperience() != null ? resume.getWorkExperience().size() : 0;
+        int internshipCount = 0;
+        if (resume.getCustomSections() != null && resume.getCustomSections().containsKey("internships")) {
+            internshipCount = resume.getCustomSections().get("internships").size();
+        }
+
+        if (expCount == 0 && internshipCount == 0) return "Fresher";
+        return "Mid-Level";
+    }
+
+    private List<String> filterMissingKeywords(List<String> missing, String fullText, String category, String stage) {
+        String lowerText = fullText.toLowerCase(Locale.ROOT);
+        boolean isJuniorOrStudent = "Student".equals(stage) || "Fresher".equals(stage) || "Junior".equals(stage);
+        
+        List<String> filtered = new java.util.ArrayList<>();
+        for (String kw : missing) {
+            String kwLower = kw.toLowerCase(Locale.ROOT);
+            
+            if ("spring boot".equals(kwLower)) {
+                if (lowerText.contains("java")) filtered.add(kw);
+                continue;
+            }
+            if ("typescript".equals(kwLower)) {
+                if (lowerText.contains("react") || lowerText.contains("javascript")) filtered.add(kw);
+                continue;
+            }
+            if ("pandas".equals(kwLower) || "numpy".equals(kwLower) || "scikit-learn".equals(kwLower)) {
+                if (lowerText.contains("python") || lowerText.contains("machine learning") || lowerText.contains("ml")) {
+                    filtered.add(kw);
+                }
+                continue;
+            }
+            if ("kubernetes".equals(kwLower)) {
+                if (lowerText.contains("docker")) filtered.add(kw);
+                continue;
+            }
+            
+            if (isJuniorOrStudent) {
+                if ("kubernetes".equals(kwLower) || "docker".equals(kwLower) || "microservices".equals(kwLower) || 
+                    "ci/cd".equals(kwLower) || "aws".equals(kwLower) || "system design".equals(kwLower)) {
+                    
+                    boolean hasInfra = lowerText.contains("linux") || lowerText.contains("git") || 
+                                       lowerText.contains("rest api") || lowerText.contains("sql") || 
+                                       lowerText.contains("cloud") || lowerText.contains("backend");
+                    if (hasInfra) {
+                        filtered.add(kw);
+                    }
+                    continue;
+                }
+            }
+            filtered.add(kw);
+        }
+        return filtered;
     }
 
     // ─── Full text collector for keyword matching ─────────────────────────────
@@ -542,13 +778,23 @@ public class RefineService {
     // ─── Utilities ────────────────────────────────────────────────────────────
 
     private Integer parseMonthYear(String value) {
-        String[] parts = safe(value).trim().split("\\s+");
-        if (parts.length != 2) return null;
-        Integer month = MONTHS.get(parts[0].substring(0, Math.min(3, parts[0].length())).toLowerCase(Locale.ROOT));
-        if (month == null || !parts[1].matches("\\d{4}")) return null;
-        int year = Integer.parseInt(parts[1]);
-        if (year < 1950 || year > CURRENT_YEAR + 10) return null;
-        return year * 12 + month;
+        String str = safe(value).trim().toLowerCase(Locale.ROOT);
+        str = str.replaceAll("(?i)^expected\\s+", "");
+        String[] parts = str.split("\\s+");
+        if (parts.length == 1 && parts[0].matches("\\d{4}")) {
+            int year = Integer.parseInt(parts[0]);
+            if (year < 1950 || year > CURRENT_YEAR + 10) return null;
+            return year * 12 + 1; // default to Jan
+        }
+        if (parts.length == 2) {
+            String mStr = parts[0].length() > 3 ? parts[0].substring(0, 3) : parts[0];
+            Integer month = MONTHS.get(mStr);
+            if (month == null || !parts[1].matches("\\d{4}")) return null;
+            int year = Integer.parseInt(parts[1]);
+            if (year < 1950 || year > CURRENT_YEAR + 10) return null;
+            return year * 12 + month;
+        }
+        return null;
     }
 
     private String firstMatch(Pattern pattern, String text) {
