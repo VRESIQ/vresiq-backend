@@ -431,7 +431,7 @@ public class RefineService {
         }
         if (missing.isEmpty()) return 0;
 
-        missing = filterMissingKeywords(missing, fullText, category, stage);
+        missing = filterMissingKeywords(missing, fullText, category, stage, resume);
         if (missing.isEmpty()) return 0;
 
         double missRatio = (double) missing.size() / keywords.size();
@@ -689,46 +689,169 @@ public class RefineService {
         return "Mid-Level";
     }
 
-    private List<String> filterMissingKeywords(List<String> missing, String fullText, String category, String stage) {
+    private String detectCareerPath(Resume resume, String designation, String fullText) {
+        String lowerDes = designation.toLowerCase(Locale.ROOT);
         String lowerText = fullText.toLowerCase(Locale.ROOT);
+        List<String> skills = new ArrayList<>();
+        if (resume.getSkills() != null) {
+            for (Resume.Skill s : resume.getSkills()) {
+                skills.add(safe(s.getName()).toLowerCase(Locale.ROOT));
+            }
+        }
+
+        Map<String, PathData> paths = new HashMap<>();
+        paths.put("Backend Java", new PathData(
+            List.of("java", "spring", "hibernate", "junit", "maven", "gradle", "jpa", "spring boot"),
+            List.of("java", "spring boot", "spring", "hibernate", "jpa", "maven")
+        ));
+        paths.put("Frontend", new PathData(
+            List.of("react", "typescript", "redux", "next.js", "nextjs", "vue", "angular", "css", "html", "figma", "ui/ux", "responsive design", "tailwind"),
+            List.of("react", "typescript", "javascript", "vue", "angular", "css", "html", "tailwind", "next.js", "nextjs")
+        ));
+        paths.put("Machine Learning", new PathData(
+            List.of("tensorflow", "pytorch", "scikit-learn", "pandas", "numpy", "deep learning", "keras", "machine learning", "nlp", "computer vision", "data science"),
+            List.of("tensorflow", "pytorch", "scikit-learn", "pandas", "numpy", "machine learning")
+        ));
+        paths.put("DevOps", new PathData(
+            List.of("docker", "kubernetes", "ci/cd", "terraform", "github actions", "jenkins", "aws", "azure", "gcp", "prometheus", "grafana", "ansible", "devops"),
+            List.of("docker", "kubernetes", "terraform", "jenkins", "aws", "devops", "ci/cd")
+        ));
+        paths.put("QA", new PathData(
+            List.of("selenium", "junit", "testng", "postman", "api testing", "cypress", "qa", "testing", "automation testing"),
+            List.of("selenium", "junit", "testng", "postman", "cypress", "automation testing", "qa")
+        ));
+        paths.put("Data Analyst", new PathData(
+            List.of("sql", "power bi", "excel", "tableau", "statistics", "pandas", "bi analyst", "etl", "data analyst", "data analytics"),
+            List.of("sql", "power bi", "excel", "tableau", "data analyst", "pandas")
+        ));
+
+        String bestPath = "General Software Engineer";
+        int maxScore = 0;
+
+        for (Map.Entry<String, PathData> entry : paths.entrySet()) {
+            int score = 0;
+            PathData p = entry.getValue();
+            for (String term : p.terms) {
+                if (lowerDes.contains(term)) {
+                    score += 12;
+                }
+            }
+            for (String sk : skills) {
+                if (p.skills.contains(sk)) {
+                    score += 4;
+                }
+            }
+            for (String term : p.terms) {
+                if (lowerText.contains(term)) {
+                    score += 1;
+                }
+            }
+            if (score > maxScore) {
+                maxScore = score;
+                bestPath = entry.getKey();
+            }
+        }
+
+        if (maxScore < 8) {
+            return "General Software Engineer";
+        }
+        return bestPath;
+    }
+
+    private static class PathData {
+        List<String> terms;
+        List<String> skills;
+        PathData(List<String> terms, List<String> skills) {
+            this.terms = terms;
+            this.skills = skills;
+        }
+    }
+
+    private List<String> filterMissingKeywords(List<String> missing, String fullText, String category, String stage, Resume resume) {
+        String lowerText = fullText.toLowerCase(Locale.ROOT);
+        String designation = safe(resume.getProfileInfo() != null ? resume.getProfileInfo().getDesignation() : "");
+        String careerPath = detectCareerPath(resume, designation, fullText);
         boolean isJuniorOrStudent = "Student".equals(stage) || "Fresher".equals(stage) || "Junior".equals(stage);
         
         List<String> filtered = new java.util.ArrayList<>();
         for (String kw : missing) {
             String kwLower = kw.toLowerCase(Locale.ROOT);
             
-            if ("spring boot".equals(kwLower)) {
-                if (lowerText.contains("java")) filtered.add(kw);
+            // 1. General logical adjacency rules (apply to all paths)
+            if ("spring boot".equals(kwLower) && !lowerText.contains("java")) {
                 continue;
             }
-            if ("typescript".equals(kwLower)) {
-                if (lowerText.contains("react") || lowerText.contains("javascript")) filtered.add(kw);
+            if ("typescript".equals(kwLower) && !lowerText.contains("react") && !lowerText.contains("javascript")) {
                 continue;
             }
-            if ("pandas".equals(kwLower) || "numpy".equals(kwLower) || "scikit-learn".equals(kwLower)) {
-                if (lowerText.contains("python") || lowerText.contains("machine learning") || lowerText.contains("ml")) {
-                    filtered.add(kw);
-                }
+            if (List.of("pandas", "numpy", "scikit-learn", "tensorflow", "pytorch").contains(kwLower) &&
+                !lowerText.contains("python") && !lowerText.contains("machine learning") && !lowerText.contains("ml")) {
                 continue;
             }
-            if ("kubernetes".equals(kwLower)) {
-                if (lowerText.contains("docker")) filtered.add(kw);
+            if ("kubernetes".equals(kwLower) && !lowerText.contains("docker")) {
                 continue;
             }
-            
-            if (isJuniorOrStudent) {
-                if ("kubernetes".equals(kwLower) || "docker".equals(kwLower) || "microservices".equals(kwLower) || 
-                    "ci/cd".equals(kwLower) || "aws".equals(kwLower) || "system design".equals(kwLower)) {
-                    
-                    boolean hasInfra = lowerText.contains("linux") || lowerText.contains("git") || 
-                                       lowerText.contains("rest api") || lowerText.contains("sql") || 
-                                       lowerText.contains("cloud") || lowerText.contains("backend");
-                    if (hasInfra) {
-                        filtered.add(kw);
+            if ("microservices".equals(kwLower) && !lowerText.contains("rest api") && !lowerText.contains("backend") && !lowerText.contains("spring") && !lowerText.contains("node")) {
+                continue;
+            }
+
+            // 2. Career Path filtering for "software engineer"
+            if ("software engineer".equals(category.toLowerCase(Locale.ROOT))) {
+                if ("Backend Java".equals(careerPath)) {
+                    List<String> forbidden = List.of("react", "typescript", "vue", "angular", "figma", "sass", "less", "html", "css", "adobe xd");
+                    if (forbidden.contains(kwLower) && !lowerText.contains("javascript") && !lowerText.contains("react")) {
+                        continue;
                     }
-                    continue;
+                } else if ("Frontend".equals(careerPath)) {
+                    List<String> forbidden = List.of("spring boot", "hibernate", "kubernetes", "docker", "microservices", "c++", "c#", "java");
+                    if (forbidden.contains(kwLower) && !lowerText.contains("node") && !lowerText.contains("python") && !lowerText.contains("java")) {
+                        continue;
+                    }
+                } else if ("Machine Learning".equals(careerPath)) {
+                    List<String> forbidden = List.of("react", "typescript", "javascript", "docker", "kubernetes", "spring boot", "hibernate", "angular", "vue", "html", "css");
+                    if (forbidden.contains(kwLower) && !lowerText.contains("mlops") && !lowerText.contains("docker")) {
+                        continue;
+                    }
+                } else if ("DevOps".equals(careerPath)) {
+                    List<String> forbidden = List.of("react", "typescript", "javascript", "spring boot", "hibernate", "angular", "vue", "html", "css");
+                    if (forbidden.contains(kwLower)) {
+                        continue;
+                    }
+                } else if ("QA".equals(careerPath)) {
+                    List<String> forbidden = List.of("react", "typescript", "docker", "kubernetes", "spring boot", "hibernate", "microservices", "aws", "azure", "gcp");
+                    if (forbidden.contains(kwLower)) {
+                        continue;
+                    }
+                } else if ("Data Analyst".equals(careerPath)) {
+                    List<String> forbidden = List.of("react", "typescript", "docker", "kubernetes", "spring boot", "hibernate", "microservices", "aws", "gcp", "azure");
+                    if (forbidden.contains(kwLower)) {
+                        continue;
+                    }
+                } else if ("General Software Engineer".equals(careerPath)) {
+                    List<String> specialized = List.of("spring boot", "hibernate", "react", "typescript", "kubernetes", "tensorflow", "pytorch", "scikit-learn", "vue", "angular", "pandas", "numpy");
+                    if (specialized.contains(kwLower)) {
+                        continue;
+                    }
                 }
             }
+
+            // 3. Junior/Student generic infrastructure filtering
+            if (isJuniorOrStudent) {
+                if (List.of("kubernetes", "docker", "microservices", "ci/cd", "aws", "system design").contains(kwLower)) {
+                    List<String> infra = List.of("linux", "git", "rest api", "sql", "cloud", "backend");
+                    boolean hasInfra = false;
+                    for (String term : infra) {
+                        if (lowerText.contains(term)) {
+                            hasInfra = true;
+                            break;
+                        }
+                    }
+                    if (!hasInfra) {
+                        continue;
+                    }
+                }
+            }
+
             filtered.add(kw);
         }
         return filtered;
