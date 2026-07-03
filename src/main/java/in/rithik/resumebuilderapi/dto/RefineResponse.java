@@ -24,4 +24,5 @@ public class RefineResponse {
     List<RefineSuggestion> issues; // all flagged items, ordered by severity
     String overallFeedback;        // 1-2 sentence plain-English summary shown at the top
     String category;               // detected job category (e.g. "software engineer"), for display
+    List<String> strengths;        // list of detected recruiter strengths
 }

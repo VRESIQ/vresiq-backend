@@ -101,7 +101,7 @@ public class RefineService {
 
         deductions += checkProfile(profile, issues, stage);
         deductions += checkContact(contact, issues);
-        deductions += checkExperience(experience, issues, resume);
+        deductions += checkExperience(experience, issues, resume, stage);
         deductions += checkEducation(education, issues);
         deductions += checkSkills(skills, issues);
         deductions += checkProjects(projects, experience, issues, stage);
@@ -116,20 +116,41 @@ public class RefineService {
             deductions += checkKeywords(resume, category.toLowerCase(Locale.ROOT), issues, stage);
         }
 
-        // Identical formula to atsScorer.js
         int score = Math.max(0, Math.min(100, 100 - deductions));
 
-        // Identical sort to atsScorer.js (errors → warnings → tips, then by deduction desc)
         issues.sort(Comparator
             .comparingInt((RefineSuggestion i) -> severityRank(i.getSeverity()))
             .thenComparing((RefineSuggestion i) -> i.getPoints() == null ? 0 : -i.getPoints())
         );
+
+        // Strengths detection
+        List<String> strengths = new ArrayList<>();
+        ResumeIntelligence intel = analyzeResumeIntelligence(resume);
+        if (experience.size() >= 3 && intel.yearsOfExperience >= 5) {
+            strengths.add("Good technical progression & career stability");
+        }
+        if (intel.achievementQuality > 75) {
+            strengths.add("Strong measurable achievements with business metrics");
+        }
+        if (intel.technicalDepth > 75) {
+            strengths.add("Excellent project complexity & technical depth");
+        }
+        if (intel.specialization != null && !"General Software Engineer".equals(intel.specialization) && !"General Resume".equals(intel.specialization)) {
+            strengths.add("Clear specialization alignment: " + intel.specialization);
+        }
+        if (intel.atsCompatibility == 100) {
+            strengths.add("Well-structured layout with optimal parser safety");
+        }
+        if (strengths.isEmpty()) {
+            strengths.add("Well-structured ATS-ready formatting foundations");
+        }
 
         return RefineResponse.builder()
             .atsScore(score)
             .issues(issues)
             .overallFeedback(feedback(score, issues, category))
             .category(category)
+            .strengths(strengths)
             .build();
     }
 
@@ -137,8 +158,8 @@ public class RefineService {
 
     private int checkProfile(Resume.ProfileInfo profile, List<RefineSuggestion> issues, String stage) {
         int pts = 0;
-        pts += requireText(issues, "missing_name",        "Profile > Full name",   profile.getFullName(),    CFG.d("missingName"),        "Add your professional or legal name at the top of your resume. ATS systems use this identifier to create your candidate profile.");
-        pts += requireText(issues, "missing_designation", "Profile > Designation", profile.getDesignation(), CFG.d("missingDesignation"), "Add a target designation title. This anchors your resume in the database and enables role-based keywords matching.");
+        pts += requireText(issues, "missing_name",        "Profile > Full name",   profile.getFullName(),    CFG.d("missingName"),        "Add your professional or legal name at the top of your resume. ATS systems use this identifier to create your candidate profile.", 100);
+        pts += requireText(issues, "missing_designation", "Profile > Designation", profile.getDesignation(), CFG.d("missingDesignation"), "Add a target designation title. This anchors your resume in the database and enables role-based keywords matching.", 95);
 
         String summary = safe(profile.getSummary());
         if (!hasText(summary)) {
@@ -150,11 +171,11 @@ public class RefineService {
             } else {
                 missingDesc = "For experienced roles, add quantified business impact, leadership scope, users supported, or performance metrics.";
             }
-            pts += add(issues, "missing_summary", "Profile > Summary", "", CFG.d("missingSummary"), missingDesc, "error");
+            pts += add(issues, "missing_summary", "Profile > Summary", "", CFG.d("missingSummary"), missingDesc, "error", 90);
         } else {
             if (summary.length() < T.getMinSummaryLen()) {
                 pts += add(issues, "short_summary", "Profile > Summary", summary, CFG.d("shortSummary"),
-                    "Expand your summary to at least 80 characters. Describe your primary strengths, target role, and highest value achievement.", "warning");
+                    "Expand your summary to at least 80 characters. Describe your primary strengths, target role, and highest value achievement.", "warning", 80);
             }
             if (!HAS_METRIC.matcher(summary).find()) {
                 String suggestion = "Add one concrete metric, such as users supported, team size, budget managed, or project outcomes.";
@@ -165,11 +186,12 @@ public class RefineService {
                 } else {
                     suggestion = "For experienced roles, add quantified business impact, users supported, revenue, or system performance metrics to your summary.";
                 }
-                pts += add(issues, "summary_no_metric", "Profile > Summary", trim(summary, 120), CFG.d("summaryNoMetric"), suggestion, "tip");
+                int conf = ("Student".equals(stage) || "Fresher".equals(stage)) ? 75 : 95;
+                pts += add(issues, "summary_no_metric", "Profile > Summary", trim(summary, 120), CFG.d("summaryNoMetric"), suggestion, "tip", conf);
             }
             if (FILLER_WORDS.matcher(summary).find()) {
                 pts += add(issues, "summary_filler", "Profile > Summary", firstMatch(FILLER_WORDS, summary), CFG.d("summaryFiller"),
-                    "Replace vague buzzwords (like 'hard-working' or 'passionate') with concrete achievements or technical skills.", "warning");
+                    "Replace vague buzzwords (like 'hard-working' or 'passionate') with concrete achievements or technical skills.", "warning", 85);
             }
         }
         return pts;
@@ -180,52 +202,53 @@ public class RefineService {
         String email = safe(contact.getEmail());
         if (!hasText(email)) {
             pts += add(issues, "missing_email", "Contact > Email", "", CFG.d("missingEmail"),
-                "Add a professional email address. ATS and recruiters need a direct contact field.", "error");
+                "Add a professional email address. ATS and recruiters need a direct contact field.", "error", 100);
         } else if (!EMAIL.matcher(email).matches()) {
             pts += add(issues, "invalid_email", "Contact > Email", email, CFG.d("invalidEmail"),
-                "Use a valid email format such as name@example.com.", "error");
+                "Use a valid email format such as name@example.com.", "error", 100);
         }
         String phone = safe(contact.getPhone());
         if (!hasText(phone)) {
             pts += add(issues, "missing_phone", "Contact > Phone", "", CFG.d("missingPhone"),
-                "Add a phone number with country code.", "warning");
+                "Add a phone number with country code.", "warning", 95);
         } else if (phone.replaceAll("\\D", "").length() < 8) {
             pts += add(issues, "invalid_phone", "Contact > Phone", phone, CFG.d("invalidPhone"),
-                "Use a complete phone number. Include country code and enough digits.", "warning");
+                "Use a complete phone number. Include country code and enough digits.", "warning", 95);
         }
         pts += requireText(issues, "missing_location", "Contact > Location", safe(contact.getLocation()), CFG.d("missingLocation"),
-            "Add city and country or region. Many ATS filters use location.");
+            "Add city and country or region. Many ATS filters use location.", 85);
         pts += checkOptionalUrl(safe(contact.getLinkedIn()), "Contact > LinkedIn", "Use a full LinkedIn URL such as https://linkedin.com/in/username.", issues);
         pts += checkOptionalUrl(safe(contact.getGithub()),   "Contact > GitHub",   "Use a full GitHub URL such as https://github.com/username.", issues);
         pts += checkOptionalUrl(safe(contact.getWebsite()),  "Contact > Website",  "Use a complete portfolio URL, including a valid domain.", issues);
         return pts;
     }
 
-    private int checkExperience(List<Resume.WorkExperience> experience, List<RefineSuggestion> issues, Resume resume) {
+    private int checkExperience(List<Resume.WorkExperience> experience, List<RefineSuggestion> issues, Resume resume, String stage) {
+        ResumeIntelligence intel = analyzeResumeIntelligence(resume);
+        boolean bypass = intel.hasInternship || intel.hasFreelancing || intel.hasOpenSource || intel.hasResearch || intel.hasHackathons;
+        
         if (experience.isEmpty()) {
-            boolean hasInternships = resume.getCustomSections() != null && resume.getCustomSections().containsKey("internships") && !resume.getCustomSections().get("internships").isEmpty();
-            boolean hasProjects = resume.getProjects() != null && !resume.getProjects().isEmpty();
-            if (hasInternships || hasProjects) {
-                return 0; // Bypass missing experience penalty if they have projects or internships
+            if (bypass) {
+                return 0; // Suppress missing experience penalty entirely
             }
             return add(issues, "missing_experience", "Experience", "", CFG.d("missingExperience"),
-                "Add at least one professional role, internship, or technical project to demonstrate hands-on application of your skills.", "error");
+                "Add at least one professional role, internship, or technical project to demonstrate hands-on application of your skills.", "error", 95);
         }
         int pts = 0;
         for (int i = 0; i < experience.size(); i++) {
             Resume.WorkExperience job = experience.get(i);
             String label = "Experience " + (i + 1);
             pts += requireText(issues, "missing_company", label + " > Company", job.getCompany(), CFG.d("missingCompany"),
-                "Add the company or organization name.");
+                "Add the company or organization name.", 90);
             pts += requireText(issues, "missing_role",    label + " > Role",    job.getRole(),    CFG.d("missingRole"),
-                "Add the role title exactly as you want recruiters and ATS to read it.");
+                "Add the role title exactly as you want recruiters and ATS to read it.", 90);
             pts += checkDateRange(job.getStartDate(), job.getEndDate(), label, issues, true);
             String description = safe(job.getDescription());
             if (!hasText(description)) {
                 pts += add(issues, "missing_experience_description", label + " > Description", "", CFG.d("missingExperienceDescription"),
-                    "Add 2-4 bullets or sentences covering action, tools, and measurable impact.", "error");
+                    "Add 2-4 bullets or sentences covering action, tools, and measurable impact.", "error", 95);
             } else {
-                pts += checkContentQuality(description, label + " > Description", T.getMinExperienceDescLen(), true, issues);
+                pts += checkContentQuality(description, label + " > Description", T.getMinExperienceDescLen(), true, issues, stage);
             }
         }
         return pts;
@@ -234,14 +257,14 @@ public class RefineService {
     private int checkEducation(List<Resume.Education> education, List<RefineSuggestion> issues) {
         if (education.isEmpty()) {
             return add(issues, "missing_education", "Education", "", CFG.d("missingEducation"),
-                "Add education, training, bootcamp, or equivalent credential. If not applicable, add your strongest formal training.", "warning");
+                "Add education, training, bootcamp, or equivalent credential. If not applicable, add your strongest formal training.", "warning", 90);
         }
         int pts = 0;
         for (int i = 0; i < education.size(); i++) {
             Resume.Education item = education.get(i);
             String label = "Education " + (i + 1);
-            pts += requireText(issues, "missing_degree",      label + " > Degree",      item.getDegree(),      CFG.d("missingDegree"),      "Add the degree, certificate, or course name.");
-            pts += requireText(issues, "missing_institution", label + " > Institution", item.getInstitution(), CFG.d("missingInstitution"), "Add the school, university, or training provider.");
+            pts += requireText(issues, "missing_degree",      label + " > Degree",      item.getDegree(),      CFG.d("missingDegree"),      "Add the degree, certificate, or course name.", 90);
+            pts += requireText(issues, "missing_institution", label + " > Institution", item.getInstitution(), CFG.d("missingInstitution"), "Add the school, university, or training provider.", 90);
             pts += checkDateRange(item.getStartDate(), item.getEndDate(), label, issues, false);
         }
         return pts;
@@ -250,12 +273,12 @@ public class RefineService {
     private int checkSkills(List<Resume.Skill> skills, List<RefineSuggestion> issues) {
         if (skills.isEmpty()) {
             return add(issues, "missing_skills", "Skills", "", CFG.d("missingSkills"),
-                "Add 8-12 concrete skills. ATS keyword matching depends heavily on this section.", "error");
+                "Add 8-12 concrete skills. ATS keyword matching depends heavily on this section.", "error", 100);
         }
         int pts = 0;
         if (skills.size() < T.getTooFewSkillsCount()) {
             pts += add(issues, "too_few_skills", "Skills", String.valueOf(skills.size()), CFG.d("tooFewSkills"),
-                "Only " + skills.size() + " skills are listed. Add enough hard skills to match the target role.", "warning");
+                "Only " + skills.size() + " skills are listed. Add enough hard skills to match the target role.", "warning", 85);
         }
         Set<String> seen = new HashSet<>();
         for (int i = 0; i < skills.size(); i++) {
@@ -264,13 +287,13 @@ public class RefineService {
             String name  = safe(skill.getName());
             if (!hasText(name)) {
                 pts += add(issues, "blank_skill", label + " > Name", "", CFG.d("blankSkill"),
-                    "Remove the blank skill row or enter a specific skill name.", "error");
+                    "Remove the blank skill row or enter a specific skill name.", "error", 95);
                 continue;
             }
             String normalized = normalizeSkillName(name);
             if (!seen.add(normalized)) {
                 pts += add(issues, "duplicate_skill", label + " > Name", name, CFG.d("duplicateSkill"),
-                    "Remove duplicate skill listing: \"" + name + "\". Keep one clear normalized entry per skill to maintain a clean layout.", "tip");
+                    "Remove duplicate skill listing: \"" + name + "\". Keep one clear normalized entry per skill to maintain a clean layout.", "tip", 95);
             }
             pts += checkProgress(skill.getProgress(), label + " > Proficiency", issues);
         }
@@ -292,20 +315,31 @@ public class RefineService {
         }
         if (projects.isEmpty() && experience.size() <= 1) {
             return add(issues, "missing_projects", "Projects", "", CFG.d("missingProjects"),
-                "Add one or two strong projects to showcase hands-on work if your experience is light.", "warning");
+                "Add one or two strong projects to showcase hands-on work if your experience is light.", "warning", 90);
         }
         int pts = 0;
         for (int i = 0; i < projects.size(); i++) {
             Resume.Project project = projects.get(i);
             String label = "Projects " + (i + 1);
             pts += requireText(issues, "missing_project_title", label + " > Title", project.getTitle(), CFG.d("missingProjectTitle"),
-                "Add a concise project title.");
+                "Add a concise project title.", 90);
             String description = safe(project.getDescription());
             if (!hasText(description)) {
                 pts += add(issues, "missing_project_description", label + " > Description", "", CFG.d("missingProjectDescription"),
-                    "Add what the project does, what you used, and what improved.", "warning");
+                    "Add what the project does, what you used, and what improved.", "warning", 90);
             } else {
-                pts += checkContentQuality(description, label + " > Description", T.getMinProjectDescLen(), false, issues);
+                pts += checkContentQuality(description, label + " > Description", T.getMinProjectDescLen(), false, issues, stage);
+
+                // Portfolio portfolio-style checks (problem statement, technologies, deployment, testing, complexity)
+                String lowerDesc = description.toLowerCase(Locale.ROOT);
+                if (!lowerDesc.contains("architecture") && !lowerDesc.contains("design") && !lowerDesc.contains("built") && !lowerDesc.contains("implement")) {
+                    pts += add(issues, "project_architecture_weak", label + " > Description", trim(description, 120), 0,
+                        "Reason: Project details lack architectural or implementation depth.\nWhy it matters: Recruiters evaluate engineering scope through structural choices.\nActionable improvement: Clarify the problem statement and design choices in your project description.\nRecruiter impact: Demonstrates software engineering maturity and logical planning.\nExample: 'Designed a multi-tier microservices architecture using Spring Cloud.'", "tip", 80);
+                }
+                if (!lowerDesc.contains("deploy") && !lowerDesc.contains("aws") && !lowerDesc.contains("docker") && !lowerDesc.contains("kubernetes") && !lowerDesc.contains("cloud") && !lowerDesc.contains("vercel") && !lowerDesc.contains("github actions")) {
+                    pts += add(issues, "project_deployment_missing", label + " > Description", trim(description, 120), 0,
+                        "Reason: Missing details about deployment or cloud environment.\nWhy it matters: Showing your application runs in production validates end-to-end delivery skills.\nActionable improvement: Document how the application is built, deployed, or hosted.\nRecruiter impact: Proves you can manage software beyond local execution.\nExample: 'Deployed on AWS ECS using Docker containers and GitHub Actions.'", "tip", 80);
+                }
             }
             pts += checkOptionalUrl(project.getGithub(),  label + " > GitHub URL",   "Use a valid repository URL or leave the field empty.", issues);
             pts += checkOptionalUrl(project.getLiveDemo(), label + " > Live demo URL", "Use a valid live demo URL or leave the field empty.", issues);
@@ -334,12 +368,12 @@ public class RefineService {
             String name  = safe(language.getName());
             if (!hasText(name)) {
                 pts += add(issues, "blank_language", label + " > Name", "", CFG.d("blankLanguage"),
-                    "Remove the blank language row or enter a language name.", "tip");
+                    "Remove the blank language row or enter a language name.", "tip", 80);
                 continue;
             }
             if (!seen.add(name.toLowerCase(Locale.ROOT))) {
                 pts += add(issues, "duplicate_language", label + " > Name", name, CFG.d("duplicateLanguage"),
-                    "Remove duplicate language entries.", "tip");
+                    "Remove duplicate language entries.", "tip", 80);
             }
             pts += checkProgress(language.getProgress(), label + " > Proficiency", issues);
         }
@@ -354,17 +388,17 @@ public class RefineService {
             String label    = "Interests " + (i + 1);
             if (!hasText(interest)) {
                 pts += add(issues, "blank_interest", label, "", CFG.d("blankInterest"),
-                    "Remove blank interest rows.", "tip");
+                    "Remove blank interest rows.", "tip", 80);
                 continue;
             }
             if (!seen.add(interest.toLowerCase(Locale.ROOT))) {
                 pts += add(issues, "duplicate_interest", label, interest, CFG.d("duplicateInterest"),
-                    "Remove duplicate interests.", "tip");
+                    "Remove duplicate interests.", "tip", 80);
             }
         }
         if (interests.size() > T.getTooManyInterestsCount()) {
             pts += add(issues, "too_many_interests", "Interests", String.valueOf(interests.size()), CFG.d("tooManyInterests"),
-                "Keep interests short or remove them for ATS-first resumes. Use the space for experience, skills, or projects.", "tip");
+                "Keep interests short or remove them for ATS-first resumes. Use the space for experience, skills, or projects.", "tip", 80);
         }
         return pts;
     }
@@ -380,7 +414,7 @@ public class RefineService {
                 String displayName = templateName(template);
                 pts += add(issues, "template_parse_risk", "Customization > Template", displayName, templateRisk,
                     "For ATS uploads, use Classic or Minimal. Keep visual templates for human-facing PDFs.",
-                    templateRisk >= 6 ? "warning" : "tip");
+                    templateRisk >= 6 ? "warning" : "tip", 80);
             }
         }
 
@@ -389,34 +423,34 @@ public class RefineService {
         String photoShape = safe(decoratives.get("photoShape"));
         if (hasText(photoUrl) && !"none".equalsIgnoreCase(photoShape)) {
             pts += add(issues, "profile_photo_parse_risk", "Profile > Photo", "Photo attached", CFG.d("profilePhotoParseRisk"),
-                "Remove the photo for ATS-first resumes. Photos are often ignored and can reduce parser consistency.", "warning");
+                "Remove the photo for ATS-first resumes. Photos are often ignored and can reduce parser consistency.", "warning", 90);
         }
         String headerStyle = safe(decoratives.get("headerStyle"));
         if ("full-bleed".equalsIgnoreCase(headerStyle) || "card".equalsIgnoreCase(headerStyle)) {
             pts += add(issues, "decorative_header", "Customization > Header style", headerStyle, CFG.d("decorativeHeader"),
-                "Use Minimal header style for ATS uploads. Decorative headers can change read order in some parsers.", "tip");
+                "Use Minimal header style for ATS uploads. Decorative headers can change read order in some parsers.", "tip", 80);
         }
         if ("true".equalsIgnoreCase(decoratives.get("sectionIcons"))) {
             pts += add(issues, "section_icons", "Customization > Section icons", "Enabled", CFG.d("sectionIcons"),
-                "Disable section icons for ATS uploads. Icons can be parsed as stray characters.", "warning");
+                "Disable section icons for ATS uploads. Icons can be parsed as stray characters.", "warning", 80);
         }
         if ("true".equalsIgnoreCase(decoratives.get("sectionNumbers"))) {
             pts += add(issues, "section_numbers", "Customization > Section numbers", "Enabled", CFG.d("sectionNumbers"),
-                "Disable section numbers if the resume is being uploaded to an ATS. Plain section headings parse cleaner.", "tip");
+                "Disable section numbers if the resume is being uploaded to an ATS. Plain section headings parse cleaner.", "tip", 80);
         }
         String dividerStyle = safe(decoratives.get("dividerStyle"));
         if ("dots".equalsIgnoreCase(dividerStyle) || "gradient".equalsIgnoreCase(dividerStyle)) {
             pts += add(issues, "decorative_divider", "Customization > Divider style", dividerStyle, CFG.d("decorativeDivider"),
-                "Use a simple line divider or no divider for ATS uploads.", "tip");
+                "Use a simple line divider or no divider for ATS uploads.", "tip", 80);
         }
         String progressStyle = safe(decoratives.get("progressStyle"));
         if ("bar".equalsIgnoreCase(progressStyle) || "dots".equalsIgnoreCase(progressStyle)) {
             pts += add(issues, "visual_progress", "Customization > Skill progress style", progressStyle, CFG.d("visualProgress"),
-                "ATS reads skill names, not bars or dots. Keep the skill names textual and do not rely on visual proficiency.", "tip");
+                "ATS reads skill names, not bars or dots. Keep the skill names textual and do not rely on visual proficiency.", "tip", 80);
         }
         if (hasText(resume.getFontPairing()) && !"inter".equalsIgnoreCase(resume.getFontPairing())) {
             pts += add(issues, "custom_font", "Customization > Font", resume.getFontPairing(), CFG.d("customFont"),
-                "Use a common system-like font for ATS uploads. Keep custom fonts for human-facing versions.", "tip");
+                "Use a common system-like font for ATS uploads. Keep custom fonts for human-facing versions.", "tip", 80);
         }
         return pts;
     }
@@ -440,61 +474,55 @@ public class RefineService {
         
         String suggestion = "Including key technical terms for a " + category + " role helps parser matching. If you have experience with these adjacent concepts, consider adding them to your skills or project descriptions: " + String.join(", ", top) + ". Otherwise, focus on clarifying your core strengths.";
 
-        issues.add(issue(
-            "keyword_gap", "Role keywords",
-            "Missing: " + String.join(", ", top),
-            suggestion,
-            pts >= 10 ? "warning" : "tip",
-            pts
-        ));
-        return pts;
+        return add(issues, "keyword_gap", "Role keywords", "Missing: " + String.join(", ", top), pts, suggestion, pts >= 10 ? "warning" : "tip", 90);
     }
 
-    private int checkContentQuality(String text, String section, int minLength, boolean requireMetric, List<RefineSuggestion> issues) {
+    private int checkContentQuality(String text, String section, int minLength, boolean requireMetric, List<RefineSuggestion> issues, String stage) {
         int pts = 0;
         String value = safe(text);
         if (value.length() < minLength) {
             pts += add(issues, "short_description", section, value, CFG.d("shortDescription"),
-                "Add more detail: action, tools, scope, and result.", "warning");
+                "Add more detail: action, tools, scope, and result.", "warning", 80);
         }
         if (!ACTION_VERB.matcher(value).find()) {
             pts += add(issues, "missing_action_verb", section, trim(value, 120), CFG.d("missingActionVerb"),
-                "Start at least one sentence or bullet with a strong action verb such as Built, Led, Improved, Reduced, or Automated.", "tip");
+                "Start at least one sentence or bullet with a strong action verb such as Built, Led, Improved, Reduced, or Automated.", "tip", 85);
         }
         if (requireMetric && !HAS_METRIC.matcher(value).find()) {
+            int conf = ("Student".equals(stage) || "Fresher".equals(stage)) ? 75 : 95;
             pts += add(issues, "missing_metric", section, trim(value, 120), CFG.d("missingMetric"),
-                "Add a number or measurable result, for example: Reduced latency by 40% or Supported 10K users.", "warning");
+                "Add a number or measurable result, for example: Reduced latency by 40% or Supported 10K users.", "warning", conf);
         }
         if (PASSIVE_VOICE.matcher(value).find()) {
             pts += add(issues, "passive_voice", section, firstMatch(PASSIVE_VOICE, value), CFG.d("passiveVoice"),
-                "Rewrite this in active voice. Use a direct action verb and state your impact.", "warning");
+                "Rewrite this in active voice. Use a direct action verb and state your impact.", "warning", 90);
         }
         if (FILLER_WORDS.matcher(value).find()) {
             pts += add(issues, "filler_word", section, firstMatch(FILLER_WORDS, value), CFG.d("fillerWord"),
-                "Remove vague wording and replace it with a concrete action or result.", "warning");
+                "Remove vague wording and replace it with a concrete action or result.", "warning", 85);
         }
         return pts;
     }
 
     private int checkDateRange(String start, String end, String section, List<RefineSuggestion> issues, boolean allowPresent) {
         int pts = 0;
-        if (!hasText(start)) pts += add(issues, "missing_start_date", section + " > Start date", "", CFG.d("missingStartDate"), "Add a start month and year.", "warning");
-        if (!hasText(end))   pts += add(issues, "missing_end_date",   section + " > End date",   "", CFG.d("missingEndDate"),   allowPresent ? "Add an end month/year or mark it as Present." : "Add an end month and year.", "warning");
+        if (!hasText(start)) pts += add(issues, "missing_start_date", section + " > Start date", "", CFG.d("missingStartDate"), "Add a start month and year.", "warning", 90);
+        if (!hasText(end))   pts += add(issues, "missing_end_date",   section + " > End date",   "", CFG.d("missingEndDate"),   allowPresent ? "Add an end month/year or mark it as Present." : "Add an end month and year.", "warning", 90);
         if (!hasText(start) || !hasText(end)) return pts;
         if ("present".equalsIgnoreCase(end)) {
-            if (!allowPresent) pts += add(issues, "invalid_end_date", section + " > End date", end, CFG.d("invalidEndDate"), "Use a real end month and year for this section.", "warning");
+            if (!allowPresent) pts += add(issues, "invalid_end_date", section + " > End date", end, CFG.d("invalidEndDate"), "Use a real end month and year for this section.", "warning", 90);
             return pts;
         }
         Integer sv = parseMonthYear(start), ev = parseMonthYear(end);
-        if (sv == null) pts += add(issues, "invalid_start_date", section + " > Start date", start, CFG.d("invalidStartDate"), "Use the editor date format: month plus four-digit year.", "warning");
-        if (ev == null) pts += add(issues, "invalid_end_date",   section + " > End date",   end,   CFG.d("invalidEndDate"),   "Use the editor date format: month plus four-digit year.", "warning");
-        if (sv != null && ev != null && sv > ev) pts += add(issues, "date_order", section + " > Dates", start + " to " + end, CFG.d("dateOrder"), "Start date is after end date. Correct the timeline before applying.", "error");
+        if (sv == null) pts += add(issues, "invalid_start_date", section + " > Start date", start, CFG.d("invalidStartDate"), "Use the editor date format: month plus four-digit year.", "warning", 85);
+        if (ev == null) pts += add(issues, "invalid_end_date",   section + " > End date",   end,   CFG.d("invalidEndDate"),   "Use the editor date format: month plus four-digit year.", "warning", 85);
+        if (sv != null && ev != null && sv > ev) pts += add(issues, "date_order", section + " > Dates", start + " to " + end, CFG.d("dateOrder"), "Start date is after end date. Correct the timeline before applying.", "error", 95);
         return pts;
     }
 
     private int checkYear(String year, String section, List<RefineSuggestion> issues) {
-        if (!hasText(year)) return add(issues, "missing_cert_year", section, "", CFG.d("missingCertYear"), "Add the completion year or remove the year field if unknown.", "tip");
-        if (!year.matches("\\d{4}")) return add(issues, "invalid_year", section, year, CFG.d("invalidYear"), "Use a four-digit year.", "warning");
+        if (!hasText(year)) return add(issues, "missing_cert_year", section, "", CFG.d("missingCertYear"), "Add the completion year or remove the year field if unknown.", "tip", 80);
+        if (!year.matches("\\d{4}")) return add(issues, "invalid_year", section, year, CFG.d("invalidYear"), "Use a four-digit year.", "warning", 85);
         int numericYear = Integer.parseInt(year);
         if (numericYear < 1950 || numericYear > CURRENT_YEAR + 10) return add(issues, "year_out_of_range", section, year, CFG.d("yearOutOfRange"), "Use a realistic year.", "warning");
         return 0;
@@ -508,13 +536,17 @@ public class RefineService {
 
     private int checkOptionalUrl(String url, String section, String fix, List<RefineSuggestion> issues) {
         if (!hasText(url)) return 0;
-        if (!URL.matcher(url).matches()) return add(issues, "invalid_url", section, url, CFG.d("invalidUrl"), fix, "tip");
+        if (!URL.matcher(url).matches()) return add(issues, "invalid_url", section, url, CFG.d("invalidUrl"), fix, "tip", 90);
         return 0;
     }
 
-    private int requireText(List<RefineSuggestion> issues, String type, String section, String value, int points, String fix) {
+    private int requireText(List<RefineSuggestion> issues, String type, String section, String value, int points, String fix, int confidence) {
         if (hasText(value)) return 0;
-        return add(issues, type, section, "", points, fix, points >= 5 ? "error" : "warning");
+        return add(issues, type, section, "", points, fix, points >= 5 ? "error" : "warning", confidence);
+    }
+
+    private int requireText(List<RefineSuggestion> issues, String type, String section, String value, int points, String fix) {
+        return requireText(issues, type, section, value, points, fix, 90);
     }
 
     private String formatRecruiterSuggestion(String type, String suggestion) {
@@ -625,17 +657,27 @@ public class RefineService {
         }
     }
 
-    private int add(List<RefineSuggestion> issues, String type, String section, String original, int points, String suggestion, String severity) {
-        issues.add(issue(type, section, original, suggestion, severity, points));
+    private int add(List<RefineSuggestion> issues, String type, String section, String original, int points, String suggestion, String severity, int confidence) {
+        if (confidence < 70) return 0;
+        issues.add(issue(type, section, original, suggestion, severity, points, confidence));
         return points;
     }
 
-    private RefineSuggestion issue(String type, String section, String original, String suggestion, String severity, int points) {
+    private int add(List<RefineSuggestion> issues, String type, String section, String original, int points, String suggestion, String severity) {
+        return add(issues, type, section, original, points, suggestion, severity, 90);
+    }
+
+    private RefineSuggestion issue(String type, String section, String original, String suggestion, String severity, int points, int confidence) {
         String formatted = formatRecruiterSuggestion(type, suggestion);
         return RefineSuggestion.builder()
             .type(type).section(section).original(original)
             .suggestion(formatted).severity(severity).points(points)
+            .confidence(confidence)
             .build();
+    }
+
+    private RefineSuggestion issue(String type, String section, String original, String suggestion, String severity, int points) {
+        return issue(type, section, original, suggestion, severity, points, 90);
     }
 
     private String detectCareerStage(Resume resume) {
@@ -926,13 +968,149 @@ public class RefineService {
     }
 
     private String feedback(int score, List<RefineSuggestion> issues, String category) {
-        long errors   = issues.stream().filter(i -> "error".equals(i.getSeverity())).count();
-        long warnings = issues.stream().filter(i -> "warning".equals(i.getSeverity())).count();
-        String role   = category != null ? " for a " + category + " role" : "";
-        if (score >= SB.getStrong())   return "Strong ATS-ready structure"  + role + ". Fix the remaining small parser risks before uploading.";
-        if (score >= SB.getGood())     return "Good foundation"             + role + ". Address " + errors + " critical issue(s) and " + warnings + " warning(s) to reduce ATS risk.";
-        if (score >= SB.getModerate()) return "Moderate ATS risk"           + role + ". Focus first on missing required fields, measurable experience, and parser-friendly layout.";
-        return "High ATS risk" + role + ". Fill missing sections, simplify formatting, and rewrite weak bullets before applying.";
+        String role = category != null ? " for a " + category + " role" : "";
+        if (score >= 95) return "Exceptional recruiter-grade resume structure" + role + ". Excellent focus, technical depth, and metrics.";
+        if (score >= 90) return "Highly Competitive candidate profile" + role + ". Formatted well with strong impact alignment.";
+        if (score >= 80) return "Good ATS foundation" + role + ". Address the remaining warning(s) and tip(s) to optimize.";
+        if (score >= 70) return "Average performance" + role + ". Enhance your project details and experience bullets to stand out.";
+        if (score >= 60) return "Needs Improvement" + role + ". Resolve critical issues and warnings to lower ATS risk.";
+        return "Major Resume Issues detected" + role + ". High formatting and missing fields risk; overhaul structure before applying.";
+    }
+
+    public static class ResumeIntelligence {
+        public String stage;
+        public double yearsOfExperience;
+        public String targetRole;
+        public String specialization;
+        public boolean hasInternship;
+        public boolean hasFreelancing;
+        public boolean hasOpenSource;
+        public boolean hasResearch;
+        public boolean hasHackathons;
+        public boolean hasLeadership;
+        public boolean hasCertifications;
+        public String primaryLanguage;
+        public String frameworkEcosystem;
+        public String domain;
+        public String industry;
+        public String projComplexity;
+        public int achievementQuality;
+        public int writingQuality;
+        public int technicalDepth;
+        public int atsCompatibility;
+        public int formattingQuality;
+        public int parserSafety;
+        public int resumeConfidenceScore;
+    }
+
+    public ResumeIntelligence analyzeResumeIntelligence(Resume resume) {
+        String text = allText(resume).toLowerCase(Locale.ROOT);
+        Resume.ProfileInfo profile = resume.getProfileInfo() != null ? resume.getProfileInfo() : new Resume.ProfileInfo();
+        String designation = safe(profile.getDesignation());
+        String targetRole = hasText(profile.getTargetRole()) ? profile.getTargetRole() : (hasText(profile.getDesignation()) ? profile.getDesignation() : "General Resume");
+        String summary = safe(profile.getSummary());
+        
+        List<String> skills = new ArrayList<>();
+        if (resume.getSkills() != null) {
+            for (Resume.Skill s : resume.getSkills()) {
+                skills.add(safe(s.getName()).toLowerCase(Locale.ROOT));
+            }
+        }
+
+        ResumeIntelligence intel = new ResumeIntelligence();
+        intel.stage = detectCareerStage(resume);
+
+        intel.hasInternship = (resume.getCustomSections() != null && resume.getCustomSections().containsKey("internships") && !resume.getCustomSections().get("internships").isEmpty()) ||
+            designation.toLowerCase(Locale.ROOT).contains("intern") ||
+            list(resume.getWorkExperience()).stream().anyMatch(w -> safe(w.getRole()).toLowerCase(Locale.ROOT).contains("intern") || safe(w.getCompany()).toLowerCase(Locale.ROOT).contains("intern"));
+
+        intel.hasFreelancing = text.contains("freelance") || text.contains("contractor") || text.contains("consultant");
+
+        intel.hasOpenSource = text.contains("open source") || text.contains("contribution") || list(resume.getProjects()).stream().anyMatch(p -> hasText(p.getGithub()));
+
+        intel.hasResearch = text.contains("research assistant") || text.contains("publication") || text.contains("research paper") || text.contains("scientific");
+
+        intel.hasHackathons = text.contains("hackathon") || text.contains("competition") || text.contains("codefest");
+
+        intel.hasLeadership = text.contains("lead ") || text.contains("manage") || text.contains("direct") || text.contains("mentor") || text.contains("orchestrated") || text.contains("supervised");
+
+        intel.hasCertifications = !list(resume.getCertifications()).isEmpty();
+
+        intel.specialization = detectCareerPath(resume, designation, text);
+
+        int totalMonths = 0;
+        for (Resume.WorkExperience w : list(resume.getWorkExperience())) {
+            Integer startVal = parseMonthYear(w.getStartDate());
+            Integer endVal = w.getEndDate() != null && w.getEndDate().toLowerCase(Locale.ROOT).contains("present") ? CURRENT_YEAR * 12 + java.time.LocalDate.now().getMonthValue() : parseMonthYear(w.getEndDate());
+            if (startVal != null && endVal != null && endVal >= startVal) {
+                totalMonths += (endVal - startVal + 1);
+            }
+        }
+        intel.yearsOfExperience = Math.round((totalMonths / 12.0) * 10) / 10.0;
+
+        intel.primaryLanguage = "General";
+        if (text.contains("python")) intel.primaryLanguage = "Python";
+        else if (text.contains("java")) intel.primaryLanguage = "Java";
+        else if (text.contains("javascript") || text.contains("typescript") || text.contains("node.js")) intel.primaryLanguage = "JavaScript";
+        else if (text.contains("c++")) intel.primaryLanguage = "C++";
+        else if (text.contains("c#")) intel.primaryLanguage = "C#";
+
+        intel.frameworkEcosystem = "General";
+        if (text.contains("spring")) intel.frameworkEcosystem = "Spring";
+        else if (text.contains("react")) intel.frameworkEcosystem = "React";
+        else if (text.contains("angular")) intel.frameworkEcosystem = "Angular";
+        else if (text.contains("django") || text.contains("flask")) intel.frameworkEcosystem = "Django/Flask";
+
+        intel.domain = "General";
+        if ("Machine Learning".equals(intel.specialization) || text.contains("ai ") || text.contains("deep learning")) intel.domain = "Data/AI";
+        else if ("DevOps".equals(intel.specialization) || text.contains("aws") || text.contains("cloud")) intel.domain = "Cloud/DevOps";
+        else if ("Frontend".equals(intel.specialization) || text.contains("web development")) intel.domain = "Web";
+        else if (text.contains("clinical") || text.contains("healthcare") || text.contains("nurse")) intel.domain = "Healthcare";
+        else if (text.contains("finance") || text.contains("bank") || text.contains("valuation")) intel.domain = "Finance";
+
+        intel.industry = "Tech";
+        if (text.contains("healthcare") || text.contains("medical")) intel.industry = "Healthcare";
+        else if (text.contains("bank") || text.contains("finance") || text.contains("investment")) intel.industry = "Finance";
+        else if (text.contains("government") || text.contains("policy")) intel.industry = "Government";
+        else if (text.contains("mechanical") || text.contains("automotive")) intel.industry = "Automotive";
+
+        intel.projComplexity = "Low";
+        int complexKeywords = 0;
+        for (String k : List.of("architecture", "performance", "database", "scale", "concurrency", "deployment", "docker", "kubernetes", "cloud", "security")) {
+            if (text.contains(k)) complexKeywords++;
+        }
+        if (complexKeywords > 5) intel.projComplexity = "High";
+        else if (complexKeywords > 2) intel.projComplexity = "Medium";
+
+        int metricsCount = 0;
+        var matcher = HAS_METRIC.matcher(text);
+        while (matcher.find()) metricsCount++;
+
+        intel.achievementQuality = Math.min(100, Math.max(40, 40 + metricsCount * 15));
+        intel.writingQuality = 100;
+        int fillerCount = 0;
+        var fm = FILLER_WORDS.matcher(text);
+        while (fm.find()) fillerCount++;
+        if (fillerCount > 0) intel.writingQuality = Math.max(40, 100 - fillerCount * 8);
+
+        intel.technicalDepth = Math.min(100, Math.max(30, 30 + skills.size() * 5 + complexKeywords * 6));
+        
+        intel.atsCompatibility = 100;
+        var dec = resume.getDecoratives() != null ? resume.getDecoratives() : Collections.emptyMap();
+        String div = safe(dec.get("dividerStyle"));
+        String prog = safe(dec.get("progressStyle"));
+        if ("dots".equals(div) || "gradient".equals(div)) intel.atsCompatibility -= 10;
+        if ("bar".equals(prog) || "dots".equals(prog)) intel.atsCompatibility -= 15;
+        if (hasText(resume.getFontPairing()) && !"inter".equals(resume.getFontPairing())) intel.atsCompatibility -= 10;
+
+        intel.formattingQuality = intel.atsCompatibility;
+        intel.parserSafety = 100;
+        if (!hasText(profile.getFullName())) intel.parserSafety -= 30;
+        if (resume.getContactInfo() == null || !hasText(safe(resume.getContactInfo().getEmail()))) intel.parserSafety -= 30;
+
+        intel.resumeConfidenceScore = (int) Math.round((intel.technicalDepth + intel.writingQuality + intel.achievementQuality) / 3.0);
+
+        return intel;
     }
 
     private int severityRank(String severity) {

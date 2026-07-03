@@ -28,4 +28,5 @@ public class RefineSuggestion {
     String suggestion; // actionable fix guidance
     String severity;   // "error" | "warning" | "tip"
     Integer points;    // score deduction for this issue
+    Integer confidence; // suggestion confidence rating (0-100)
 }
