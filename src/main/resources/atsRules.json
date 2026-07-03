@@ -184,6 +184,25 @@
       "patient care", "clinical", "EMR", "EHR", "HIPAA", "diagnosis",
       "treatment", "medication", "healthcare", "medical", "nursing",
       "patient assessment", "documentation", "compliance", "telehealth"
+    ],
+    "java developer": [
+      "Java", "Spring Boot", "Hibernate", "REST API", "Microservices", "SQL",
+      "PostgreSQL", "Docker", "Kubernetes", "Git", "Maven", "JUnit", "system design"
+    ],
+    "full stack developer": [
+      "JavaScript", "TypeScript", "React", "Node.js", "Express.js", "SQL",
+      "MongoDB", "REST API", "Docker", "Git", "HTML", "CSS", "AWS", "CI/CD",
+      "system design", "unit testing"
+    ],
+    "qa engineer": [
+      "automation testing", "Selenium", "JUnit", "TestNG", "Cypress",
+      "API testing", "Postman", "manual testing", "bug tracking", "Jira",
+      "Git", "CI/CD", "regression testing"
+    ],
+    "machine learning engineer": [
+      "Python", "machine learning", "deep learning", "TensorFlow", "PyTorch",
+      "scikit-learn", "SQL", "statistics", "NLP", "computer vision",
+      "pandas", "NumPy"
     ]
   }
 }
