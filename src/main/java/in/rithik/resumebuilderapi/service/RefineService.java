@@ -770,6 +770,10 @@ public class RefineService {
         List<RefineSuggestion> tips = new ArrayList<>();
 
         for (RefineSuggestion iss : mergedIssues) {
+            int confidenceGate = "error".equals(iss.getSeverity()) ? 70 : "warning".equals(iss.getSeverity()) ? 80 : 85;
+            if (iss.getConfidence() == null || iss.getConfidence() < confidenceGate) {
+                continue;
+            }
             if ("error".equals(iss.getSeverity())) {
                 if (errors.size() < 2) errors.add(iss);
             } else if ("warning".equals(iss.getSeverity())) {
@@ -797,7 +801,7 @@ public class RefineService {
             String exampleText = "";
             
             boolean isGrouped = (iss.getOriginal() == null || iss.getOriginal().isEmpty()) 
-                && List.of("missing_metric", "missing_action_verb", "passive_voice", "filler_word").contains(iss.getType());
+                && !List.of("missing_name", "missing_designation", "missing_email", "missing_phone", "missing_location", "missing_summary", "missing_education", "missing_skills", "missing_projects", "missing_experience", "template_parse_risk", "profile_photo_parse_risk", "keyword_gap").contains(iss.getType());
             String adviceKey = iss.getType() + "|" + iss.getSection() + "|" + safe(iss.getSuggestion()).toLowerCase(Locale.ROOT);
             if (!seenAdvice.add(adviceKey)) {
                 continue;
