@@ -993,6 +993,15 @@ public class RefineService {
             "Data Analyst", List.of("sql", "power bi", "tableau", "excel", "data analysis", "pandas")
         );
 
+        Map<String, List<String>> matrixSkills = Map.of(
+            "Backend Java", List.of("java", "spring boot"),
+            "Frontend", List.of("react", "typescript", "javascript", "html", "css"),
+            "Machine Learning", List.of("python", "pytorch", "tensorflow"),
+            "DevOps", List.of("docker", "kubernetes", "aws", "terraform"),
+            "QA", List.of("selenium", "testing"),
+            "Data Analyst", List.of("sql", "power bi", "excel", "tableau")
+        );
+
         String bestPath = "General Software Engineer";
         int maxScore = 0;
 
@@ -1000,6 +1009,7 @@ public class RefineService {
             int score = 0;
             String pathName = entry.getKey();
             List<String> terms = entry.getValue();
+            List<String> skills = matrixSkills.get(pathName);
             
             for (String term : terms) {
                 if (lowerDes.contains(term)) score += 12;
@@ -1007,7 +1017,7 @@ public class RefineService {
             }
             for (Resume.Skill sk : list(resume.getSkills())) {
                 String name = safe(sk.getName()).toLowerCase(Locale.ROOT);
-                for (String term : terms) {
+                for (String term : skills) {
                     if (name.contains(term)) score += 4;
                 }
             }
