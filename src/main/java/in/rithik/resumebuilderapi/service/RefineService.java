@@ -216,6 +216,7 @@ public class RefineService {
         ResumeIntelligence intel = new ResumeIntelligence();
         intel.stage = detectCareerStage(resume);
         intel.specialization = detectCareerPath(resume, designation, text);
+        intel.targetRole = hasText(designation) ? designation : "General Resume";
 
         intel.hasInternship = (resume.getCustomSections() != null && resume.getCustomSections().containsKey("internships")) ||
             designation.toLowerCase(Locale.ROOT).contains("intern") ||
@@ -1002,13 +1003,13 @@ public class RefineService {
             "Data Analyst", List.of("sql", "power bi", "excel", "tableau")
         );
 
+        List<String> pathsOrder = List.of("Backend Java", "Frontend", "Machine Learning", "DevOps", "QA", "Data Analyst");
         String bestPath = "General Software Engineer";
         int maxScore = 0;
 
-        for (Map.Entry<String, List<String>> entry : matrixTerms.entrySet()) {
+        for (String pathName : pathsOrder) {
             int score = 0;
-            String pathName = entry.getKey();
-            List<String> terms = entry.getValue();
+            List<String> terms = matrixTerms.get(pathName);
             List<String> skills = matrixSkills.get(pathName);
             
             for (String term : terms) {
