@@ -126,9 +126,38 @@ public class PaymentService {
     @Value("${razorpay.webhook.secret:}")
     private String webhookSecret;
 
+    @Value("${sentry.environment:}")
+    private String sentryEnv;
+
+    @Value("${spring.profiles.active:}")
+    private String activeProfiles;
+
+    private boolean isProductionEnvironment() {
+        if ("production".equalsIgnoreCase(sentryEnv) || "prod".equalsIgnoreCase(sentryEnv)) {
+            return true;
+        }
+        if (activeProfiles != null && (activeProfiles.contains("prod") || activeProfiles.contains("production"))) {
+            return true;
+        }
+        String appEnv = System.getenv("APP_ENV");
+        if ("production".equalsIgnoreCase(appEnv) || "prod".equalsIgnoreCase(appEnv)) {
+            return true;
+        }
+        return false;
+    }
+
     public boolean handleWebhook(String payload, String signature) {
+        boolean isProduction = isProductionEnvironment();
+
         // Validate signature if secret is configured
-        if (webhookSecret != null && !webhookSecret.isBlank()) {
+        if (webhookSecret == null || webhookSecret.isBlank()) {
+            if (isProduction) {
+                log.error("CRITICAL SECURITY ERROR: Razorpay Webhook: RAZORPAY_WEBHOOK_SECRET is not configured in PRODUCTION environment. Rejecting webhook request.");
+                return false;
+            } else {
+                log.warn("Razorpay Webhook: RAZORPAY_WEBHOOK_SECRET is not configured. Skipping signature verification in non-production environment.");
+            }
+        } else {
             try {
                 boolean isValid = Utils.verifyWebhookSignature(payload, signature, webhookSecret);
                 if (!isValid) {
@@ -139,8 +168,6 @@ public class PaymentService {
                 log.error("Razorpay Webhook: Error during signature verification: {}", e.getMessage());
                 return false;
             }
-        } else {
-            log.warn("Razorpay Webhook: RAZORPAY_WEBHOOK_SECRET is not configured. Skipping signature verification.");
         }
 
         try {

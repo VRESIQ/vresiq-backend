@@ -1,4 +1,4 @@
-﻿# VRESIQ Backend Production Deployment Guide
+# VRESIQ Backend Production Deployment Guide
 
 This guide is aligned to runtime code in `src/main/resources/application.properties`.
 
@@ -16,13 +16,14 @@ Set these before starting the backend:
 3. `FRONTEND_URL` (exact trusted frontend origin, comma-separated if multiple)
 4. `RAZORPAY_KEY_ID`
 5. `RAZORPAY_KEY_SECRET`
-6. `CLOUD_NAME`
-7. `CLOUD_KEY`
-8. `CLOUD_SECRET`
-9. One mail username variable:
-   - `VRESIQ_MAIL_USERNAME` or `MAIL_USERNAME`
-10. One mail password variable:
-   - `VRESIQ_MAIL_PASSWORD` or `MAIL_PASSWORD`
+6. `RAZORPAY_WEBHOOK_SECRET` (Strictly required in production; webhook signature validation fails closed if missing)
+7. `CLOUD_NAME`
+8. `CLOUD_KEY`
+9. `CLOUD_SECRET`
+10. One mail username variable:
+    - `VRESIQ_MAIL_USERNAME` or `MAIL_USERNAME`
+11. One mail password variable:
+    - `VRESIQ_MAIL_PASSWORD` or `MAIL_PASSWORD`
 
 Optional but recommended:
 1. `MAIL_FROM`
@@ -61,6 +62,7 @@ Environment=JWT_SECRET=<high_entropy_secret>
 Environment=FRONTEND_URL=https://app.vresiq.com
 Environment=RAZORPAY_KEY_ID=rzp_live_xxxxxxxxxxxxx
 Environment=RAZORPAY_KEY_SECRET=<razorpay_live_secret>
+Environment=RAZORPAY_WEBHOOK_SECRET=<razorpay_webhook_secret>
 Environment=CLOUD_NAME=<cloudinary_cloud_name>
 Environment=CLOUD_KEY=<cloudinary_api_key>
 Environment=CLOUD_SECRET=<cloudinary_api_secret>
