@@ -327,8 +327,15 @@ public class AuthService {
     public AuthResponse updateProfile(Object principalObject, Map<String, String> updates) {
         User user = (User) principalObject;
 
-        if (updates.containsKey("name") && updates.get("name") != null && !updates.get("name").trim().isEmpty()) {
-            user.setName(updates.get("name"));
+        if (updates.containsKey("name") && updates.get("name") != null) {
+            String trimmedName = updates.get("name").trim();
+            if (trimmedName.isEmpty()) {
+                throw new IllegalArgumentException("Name cannot be empty");
+            }
+            if (trimmedName.length() < 2 || trimmedName.length() > 100) {
+                throw new IllegalArgumentException("Name must be between 2 and 100 characters");
+            }
+            user.setName(trimmedName);
         }
         if (updates.containsKey("profileImageUrl")) {
             user.setProfileImageUrl(updates.get("profileImageUrl"));
@@ -373,7 +380,7 @@ public class AuthService {
 
     private User buildUserFromRequest(RegisterRequest request) {
         return User.builder()
-                .name(request.getName())
+                .name(request.getName() != null ? request.getName().trim() : null)
                 .email(request.getEmail().toLowerCase().trim())
                 .password(passwordEncoder.encode(request.getPassword()))
                 .profileImageUrl(request.getProfileImageUrl())
