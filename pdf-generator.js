@@ -39,13 +39,13 @@ const resolveBrowserExecutable = async () => {
   const isFreePlan = args[2] !== 'false';
   
   console.log('═══════════════════════════════════════════════════════════════');
-  console.log('PDF Generator Watermark Configuration');
+  console.log('PDF Generator Configuration');
   console.log('═══════════════════════════════════════════════════════════════');
   console.log(`Input HTML Path: ${inputHtmlPath}`);
   console.log(`Output PDF Path: ${outputPdfPath}`);
   console.log(`Raw isFreePlan arg[2]: "${args[2]}"`);
   console.log(`Parsed isFreePlan: ${isFreePlan}`);
-  console.log(`Watermark Status: ${isFreePlan ? '✓ ENABLED (Free Plan) - Watermark will be added' : '✗ DISABLED (Pro Plan) - No watermark'}`);
+  console.log('Watermark footer: DISABLED - no watermark on any plan');
   console.log('═══════════════════════════════════════════════════════════════');
 
   let browser;
@@ -99,44 +99,17 @@ const resolveBrowserExecutable = async () => {
     await page.evaluateHandle('document.fonts.ready');
 
     console.log('Starting PDF generation with Puppeteer...');
-    if (isFreePlan) {
-      console.log('✓ Footer Template ENABLED - Watermark "Made with VRESIQ" will appear on every page');
-      console.log('  Font: 8px, Color: #999999, Opacity: 0.35');
-      console.log('  Position: Bottom center of each page');
-    } else {
-      console.log('✗ Footer Template DISABLED - No watermark for pro users');
-    }
+    console.log('✓ Watermark footer DISABLED - no watermark for any plan');
 
     await page.pdf({
       path: outputPdfPath,
       format: 'letter',
       printBackground: true,
       preferCSSPageSize: false,    // MUST be false: when true, Puppeteer ignores margin:{} and footerTemplate gets 0 space
-      displayHeaderFooter: true,
-      headerTemplate: '<span></span>',
-      footerTemplate: isFreePlan ? `
-        <div style="
-          font-family: 'Inter', 'Manrope', 'Plus Jakarta Sans', 'Helvetica Neue', Arial, sans-serif;
-          font-size: 8px;
-          font-weight: 400;
-          color: #999999;
-          width: 100%;
-          box-sizing: border-box;
-          text-align: center;
-          letter-spacing: 0px;
-          line-height: 1;
-          margin: 0;
-          display: block;
-          opacity: 0.35;
-          -webkit-print-color-adjust: exact;
-          print-color-adjust: exact;
-        ">
-          Made with VRESIQ
-        </div>
-      ` : '<div></div>',
+      displayHeaderFooter: false,
       margin: {
         top: '0px',
-        bottom: '45px',   // Increased from 36px to ensure footer template has adequate space
+        bottom: '0px',
         left: '0px',
         right: '0px'
       }
@@ -168,13 +141,7 @@ const resolveBrowserExecutable = async () => {
 
     console.log('═══════════════════════════════════════════════════════════════');
     console.log('PDF Generated Successfully');
-    console.log('═══════════════════════════════════════════════════════════════');
-    if (isFreePlan) {
-      console.log('✓ Free plan PDF generated with watermark footer enabled');
-      console.log('  "Made with VRESIQ" will appear at the bottom of every page');
-    } else {
-      console.log('✓ Pro plan PDF generated without watermark');
-    }
+    console.log('  Watermark footer disabled - PDF generated without any watermark');
     console.log('═══════════════════════════════════════════════════════════════');
 
     console.log('PDF generated successfully');
