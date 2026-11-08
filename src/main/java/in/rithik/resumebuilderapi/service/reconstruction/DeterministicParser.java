@@ -21,6 +21,9 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.net.URI;
+import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,6 +35,10 @@ public class DeterministicParser {
     private static final Pattern PHONE_PATTERN = Pattern.compile("(?<!\\w)(?:\\+?\\d[\\d\\s()./-]{6,}\\d)(?!\\w)");
     private static final Pattern URL_PATTERN = Pattern.compile("https?://[^\\s<>]+|(?:www\\.)?[a-zA-Z0-9.-]+\\.(?:com|org|net|ca|io|dev|edu|gov|co\\.[a-z]{2})/[^\\s<>]*", Pattern.CASE_INSENSITIVE);
     private static final Pattern DATE_RANGE = Pattern.compile("(?i)((?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\s+)?(?:19|20)\\d{2}|present|current|now)\\s*(?:-|–|—|to)\\s*((?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\s+)?(?:19|20)\\d{2}|present|current|now)");
+    private static final Pattern MONTH_YEAR_AT_END = Pattern.compile("(?i)(?:(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\s+)?(?:19|20)\\d{2}$");
+    private static final Pattern YEAR_AT_END = Pattern.compile("(?i)(?:19|20)\\d{2}$");
+    private static final Pattern EDUCATION_MONTH = Pattern.compile("(?i)\\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\b");
+    private static final Pattern VRESIQ_WATERMARK = Pattern.compile("(?i)^made with vresiq$");
 
     private static final Map<String, String> SECTION_ALIASES = new LinkedHashMap<>();
     static {
@@ -60,11 +67,13 @@ public class DeterministicParser {
         Resume resume = new Resume();
         List<String> warnings = new ArrayList<>();
         List<String> unclassified = new ArrayList<>();
+        int watermarkCount = countWatermarkLines(text);
         List<String> cleanLines = nonEmptyLines(text);
         if (cleanLines.isEmpty()) {
             warnings.add("No extractable text was found. The document may be image-only or scanned; OCR is not configured.");
             return new ParseResult(resume, unclassified, warnings);
         }
+        if (watermarkCount > 0) warnings.add("Excluded " + watermarkCount + " exact VResIQ footer watermark line(s) from resume content.");
 
         Map<String, List<String>> sections = new LinkedHashMap<>();
         List<String> preamble = new ArrayList<>();
@@ -78,7 +87,7 @@ public class DeterministicParser {
                 sections.computeIfAbsent(type, ignored -> new ArrayList<>());
             } else if (current == null) {
                 preamble.add(line);
-            } else if (!URL_PATTERN.matcher(line).matches()) {
+            } else if (!isStandaloneLink(line)) {
                 // Standalone links are captured in ContactInfo/Links; don't also misclassify them
                 // as language, skill, publication, or experience text in the current section.
                 sections.get(current).add(line);
@@ -88,6 +97,16 @@ public class DeterministicParser {
         ProfileInfo profile = new ProfileInfo();
         String detectedName = detectName(preamble);
         if (detectedName != null) profile.setFullName(detectedName);
+        List<String> preambleContent = new ArrayList<>(preamble);
+        if (detectedName != null) preambleContent.remove(detectedName);
+        String detectedDesignation = preambleContent.stream()
+                .filter(line -> !EMAIL_PATTERN.matcher(line).find() && !PHONE_PATTERN.matcher(line).find() && !URL_PATTERN.matcher(line).find())
+                .filter(line -> !line.contains(",") || line.length() < 40)
+                .findFirst().orElse(null);
+        if (detectedDesignation != null) {
+            profile.setDesignation(detectedDesignation);
+            preambleContent.remove(detectedDesignation);
+        }
         if (sections.containsKey("summary")) profile.setSummary(String.join("\n", sections.get("summary")));
         resume.setProfileInfo(profile);
 
@@ -108,19 +127,31 @@ public class DeterministicParser {
         }
         Matcher url = URL_PATTERN.matcher(allText);
         while (url.find()) {
-            String found = trimUrl(url.group());
+            String found = normalizeResumeUrl(trimUrl(url.group()));
+            String canonical = canonicalizeUrl(found);
+            if (!seenUrls.add(canonical)) duplicateUrls.add(found);
+            else allUrls.add(found);
+        }
+        String publicationUrl = sections.containsKey("publications")
+                ? allUrls.stream().filter(this::isPublicationUrl).findFirst().orElse(null) : null;
+        for (String found : allUrls) {
             String normalized = found.toLowerCase(Locale.ROOT);
-            if (!seenUrls.add(normalized)) duplicateUrls.add(found);
-            allUrls.add(found);
-            if (contact.getLinkedIn() == null && normalized.contains("linkedin.com/")) contact.setLinkedIn(addScheme(found));
-            else if (contact.getGithub() == null && normalized.contains("github.com/")) contact.setGithub(addScheme(found));
-            else if (contact.getWebsite() == null && !normalized.contains("linkedin.com/") && !normalized.contains("github.com/")) contact.setWebsite(addScheme(found));
+            if (contact.getLinkedIn() == null && normalized.contains("linkedin.com/")) contact.setLinkedIn(found);
+            else if (contact.getGithub() == null && normalized.contains("github.com/")) contact.setGithub(found);
+            String mapLocation = extractGoogleMapsLocation(found);
+            if (contact.getLocation() == null && mapLocation != null) contact.setLocation(mapLocation);
+        }
+        Matcher preambleUrl = URL_PATTERN.matcher(String.join("\n", preamble));
+        while (preambleUrl.find()) {
+            String found = normalizeResumeUrl(trimUrl(preambleUrl.group()));
+            if (contact.getWebsite() == null && !isContactSocialUrl(found) && extractGoogleMapsLocation(found) == null
+                    && !sameUrl(found, publicationUrl)) {
+                contact.setWebsite(found);
+            }
         }
         resume.setContactInfo(contact);
-        if (!duplicateUrls.isEmpty()) warnings.add("Repeated URL(s) detected and flagged: " + String.join(", ", duplicateUrls));
+        if (!duplicateUrls.isEmpty()) warnings.add("Repeated URLs were detected and consolidated using normalized destinations.");
 
-        List<String> preambleContent = new ArrayList<>(preamble);
-        if (detectedName != null) preambleContent.remove(detectedName);
         for (String line : preambleContent) {
             if (!EMAIL_PATTERN.matcher(line).find() && !PHONE_PATTERN.matcher(line).find() && !URL_PATTERN.matcher(line).find()) {
                 unclassified.add("Unclassified header content: " + line);
@@ -148,15 +179,16 @@ public class DeterministicParser {
         if (sections.containsKey("interests")) resume.setInterests(new ArrayList<>(sections.get("interests")));
 
         Map<String, List<CustomSectionEntry>> custom = new LinkedHashMap<>();
-        for (String key : List.of("publications", "volunteering", "awards")) {
+        if (sections.containsKey("publications")) custom.put("publications", parsePublications(sections.get("publications"), publicationUrl));
+        for (String key : List.of("volunteering", "awards")) {
             if (sections.containsKey(key)) custom.put(key, parseCustomEntries(key, sections.get(key)));
         }
         // Preserve links that aren't already represented as a structured contact field.
         List<CustomSectionEntry> otherLinks = new ArrayList<>();
         for (String link : allUrls) {
-            String lower = link.toLowerCase(Locale.ROOT);
             String website = contact.getWebsite() == null ? "" : contact.getWebsite().toString().toLowerCase(Locale.ROOT);
-            if (!lower.contains("linkedin.com/") && !lower.contains("github.com/") && !addScheme(link).equalsIgnoreCase(website)) {
+            if (!isContactSocialUrl(link) && extractGoogleMapsLocation(link) == null
+                    && !sameUrl(link, website) && !sameUrl(link, publicationUrl)) {
                 otherLinks.add(CustomSectionEntry.builder().title(link).url(addScheme(link)).build());
             }
         }
@@ -177,10 +209,25 @@ public class DeterministicParser {
         if (text == null || text.isBlank()) return Collections.emptyList();
         List<String> lines = new ArrayList<>();
         for (String line : text.split("\\R")) {
-            String trimmed = line.trim();
-            if (!trimmed.isEmpty()) lines.add(trimmed);
+            String trimmed = repairKnownCollapsedBoundaries(line.trim());
+            if (!trimmed.isEmpty() && !VRESIQ_WATERMARK.matcher(trimmed).matches()) lines.add(trimmed);
         }
         return lines;
+    }
+
+    private int countWatermarkLines(String text) {
+        if (text == null || text.isBlank()) return 0;
+        return (int) Arrays.stream(text.split("\\R"))
+                .map(String::trim).filter(line -> VRESIQ_WATERMARK.matcher(line).matches()).count();
+    }
+
+    private String repairKnownCollapsedBoundaries(String line) {
+        return line.replaceAll("(?i)\\bdatasets(?=including\\b)", "datasets ")
+                .replaceAll("(?i)\\bclaims(?=to\\b)", "claims ");
+    }
+
+    private boolean isStandaloneLink(String line) {
+        return URL_PATTERN.matcher(line).matches() || line.matches("(?i)^(?:mailto|tel):[^\\s]+$");
     }
 
     private String sectionType(String line) {
@@ -242,40 +289,46 @@ public class DeterministicParser {
     private ParsedEducation parseEducation(List<String> lines) {
         List<Education> items = new ArrayList<>();
         List<String> unclassified = new ArrayList<>();
-        Education current = null;
-        StringBuilder description = new StringBuilder();
+        List<String> pendingInstitution = new ArrayList<>();
         for (String line : lines) {
             Matcher year = Pattern.compile("\\b(?:19|20)\\d{2}\\b").matcher(line);
             List<String> yearsFound = new ArrayList<>();
             while (year.find()) yearsFound.add(year.group());
             if (!yearsFound.isEmpty()) {
-                if (current != null) {
-                    current.setDescription(cleanDescription(description.toString()));
-                    items.add(current);
+                String header = line.replaceAll("\\b(?:19|20)\\d{2}\\b", "");
+                header = EDUCATION_MONTH.matcher(header).replaceAll("").replaceAll("[-–—]+", " ").trim();
+                String[] inlineParts = Arrays.stream(header.split("\\s*\\|\\s*|\\s{2,}"))
+                        .map(String::trim).filter(part -> !part.isBlank()).toArray(String[]::new);
+                Education current = new Education();
+                if (!pendingInstitution.isEmpty()) {
+                    current.setInstitution(String.join(" ", pendingInstitution).trim());
+                    if (!header.isBlank()) current.setDegree(header);
+                    pendingInstitution.clear();
+                } else if (inlineParts.length > 1) {
+                    current.setDegree(inlineParts[0]);
+                    current.setInstitution(String.join(" | ", Arrays.copyOfRange(inlineParts, 1, inlineParts.length)));
+                } else if (!header.isBlank()) {
+                    current.setDegree(header);
                 }
-                String header = line.replaceAll("\\b(?:19|20)\\d{2}\\b", "").replaceAll("[-–—|,]+", "|").trim();
-                String[] parts = Arrays.stream(header.split("\\|")).map(String::trim).filter(part -> !part.isBlank()).toArray(String[]::new);
-                current = new Education();
-                if (!header.isBlank()) {
-                    if (parts.length > 0) current.setDegree(parts[0]);
-                    if (parts.length > 1) current.setInstitution(String.join(" | ", Arrays.copyOfRange(parts, 1, parts.length)));
-                }
-                if (yearsFound.size() > 1) {
-                    current.setStartDate(yearsFound.get(0));
-                    current.setEndDate(yearsFound.get(yearsFound.size() - 1));
+
+                Matcher dateRange = DATE_RANGE.matcher(line);
+                if (dateRange.find()) {
+                    current.setStartDate(dateRange.group(1).trim());
+                    current.setEndDate(dateRange.group(2).trim());
+                } else if (yearsFound.size() > 1) {
+                    int firstYear = yearsFound.stream().mapToInt(Integer::parseInt).min().orElseThrow();
+                    int lastYear = yearsFound.stream().mapToInt(Integer::parseInt).max().orElseThrow();
+                    current.setStartDate(String.valueOf(firstYear));
+                    current.setEndDate(String.valueOf(lastYear));
                 } else {
                     current.setEndDate(yearsFound.get(0));
                 }
-                description = new StringBuilder();
-            } else if (current != null) {
-                if (description.length() > 0) description.append('\n');
-                description.append(line);
-            } else unclassified.add(line);
+                items.add(current);
+            } else {
+                pendingInstitution.add(line);
+            }
         }
-        if (current != null) {
-            current.setDescription(cleanDescription(description.toString()));
-            items.add(current);
-        }
+        if (!pendingInstitution.isEmpty()) unclassified.addAll(pendingInstitution);
         return new ParsedEducation(items, unclassified);
     }
 
@@ -301,11 +354,37 @@ public class DeterministicParser {
 
     private List<Project> parseProjects(List<String> lines) {
         List<Project> result = new ArrayList<>();
+        boolean hasWebsiteLabel = lines.stream().anyMatch(line -> line.matches("(?i)^website(?:\\s+.*)?$"));
+        if (hasWebsiteLabel && !lines.isEmpty()) {
+            Project project = Project.builder().title(removeBullet(lines.get(0))).build();
+            List<String> descriptionLines = lines.subList(1, lines.size()).stream()
+                    .map(this::removeBullet).filter(value -> !value.isBlank()).toList();
+            if (!descriptionLines.isEmpty()) project.setDescription(String.join("\n", descriptionLines));
+            result.add(project);
+            return result;
+        }
+
+        Project current = null;
+        StringBuilder description = new StringBuilder();
         for (String line : lines) {
             String cleaned = removeBullet(line);
             if (cleaned.isBlank()) continue;
-            // Keep each extracted line separately until a human confirms project grouping.
-            result.add(Project.builder().title(cleaned).build());
+            boolean explicitBullet = line.matches("^\\s*(?:[-*•▪◦]+)\\s+.*");
+            if (current == null || !explicitBullet) {
+                if (current != null) {
+                    current.setDescription(cleanDescription(description.toString()));
+                    result.add(current);
+                }
+                current = Project.builder().title(cleaned).build();
+                description = new StringBuilder();
+            } else {
+                if (description.length() > 0) description.append('\n');
+                description.append(cleaned);
+            }
+        }
+        if (current != null) {
+            current.setDescription(cleanDescription(description.toString()));
+            result.add(current);
         }
         return result;
     }
@@ -314,7 +393,21 @@ public class DeterministicParser {
         List<Certification> result = new ArrayList<>();
         for (String line : lines) {
             String cleaned = removeBullet(line);
-            if (!cleaned.isBlank()) result.add(Certification.builder().title(cleaned).build());
+            if (cleaned.isBlank()) continue;
+            Matcher year = MONTH_YEAR_AT_END.matcher(cleaned);
+            String yearValue = null;
+            if (year.find()) {
+                yearValue = year.group();
+                cleaned = cleaned.substring(0, year.start()).replaceAll("[,|•\\s]+$", "").trim();
+            }
+            int lastComma = cleaned.lastIndexOf(',');
+            String title = cleaned;
+            String issuer = null;
+            if (lastComma > 0) {
+                title = cleaned.substring(0, lastComma).trim();
+                issuer = cleaned.substring(lastComma + 1).trim();
+            }
+            result.add(Certification.builder().title(title).issuer(issuer).year(yearValue).build());
         }
         return result;
     }
@@ -337,12 +430,100 @@ public class DeterministicParser {
         return result;
     }
 
+    private List<CustomSectionEntry> parsePublications(List<String> lines, String paperUrl) {
+        List<String> content = lines.stream().map(this::removeBullet)
+                .filter(line -> !line.isBlank() && !line.matches("(?i)^paper\\s+link(?:\\s+.*)?$"))
+                .filter(line -> !isStandaloneLink(line)).toList();
+        if (content.isEmpty()) return List.of();
+
+        String title = content.get(0);
+        String subtitle = null;
+        String date = null;
+        StringBuilder description = new StringBuilder();
+        Matcher inlineDate = MONTH_YEAR_AT_END.matcher(title);
+        if (inlineDate.find()) {
+            date = inlineDate.group().trim();
+            String beforeDate = title.substring(0, inlineDate.start()).replaceAll("[\\s,|•–—-]+$", "").trim();
+            int separator = Math.max(beforeDate.lastIndexOf(','), Math.max(beforeDate.lastIndexOf('|'), beforeDate.lastIndexOf('•')));
+            if (separator > 0) {
+                subtitle = beforeDate.substring(separator + 1).trim();
+                title = beforeDate.substring(0, separator).trim();
+            } else {
+                title = beforeDate;
+            }
+        }
+        for (int i = 1; i < content.size(); i++) {
+            String line = content.get(i);
+            Matcher dateMatcher = MONTH_YEAR_AT_END.matcher(line);
+            if (dateMatcher.find()) {
+                date = dateMatcher.group().trim();
+                subtitle = line.substring(0, dateMatcher.start()).replaceAll("[\\s,|•–—-]+$", "").trim();
+            } else {
+                if (description.length() > 0) description.append('\n');
+                description.append(line);
+            }
+        }
+        CustomSectionEntry entry = CustomSectionEntry.builder().title(title).subtitle(subtitle)
+                .date(date).paperUrl(paperUrl).description(cleanDescription(description.toString())).build();
+        return List.of(entry);
+    }
+
     private String trimUrl(String raw) {
         return raw.replaceAll("[),.;!?]+$", "");
     }
 
     private String addScheme(String url) {
         return url.regionMatches(true, 0, "http://", 0, 7) || url.regionMatches(true, 0, "https://", 0, 8) ? url : "https://" + url;
+    }
+
+    private String normalizeResumeUrl(String raw) {
+        String normalized = addScheme(raw);
+        if (normalized.toLowerCase(Locale.ROOT).contains("linkedin.com/")) {
+            normalized = normalized.replaceFirst("(?i)(/in/)(?:www\\.)?linkedin\\.com/in/", "$1");
+        }
+        return normalized;
+    }
+
+    private String canonicalizeUrl(String raw) {
+        return addScheme(raw).replaceFirst("(?i)^https?://", "").replaceFirst("(?i)^www\\.", "")
+                .replaceAll("/+$", "").toLowerCase(Locale.ROOT);
+    }
+
+    private boolean sameUrl(String left, String right) {
+        return left != null && right != null && canonicalizeUrl(left).equals(canonicalizeUrl(right));
+    }
+
+    private boolean isContactSocialUrl(String url) {
+        String lower = url.toLowerCase(Locale.ROOT);
+        return lower.contains("linkedin.com/") || lower.contains("github.com/");
+    }
+
+    private boolean isPublicationUrl(String url) {
+        String lower = url.toLowerCase(Locale.ROOT);
+        return lower.contains("publications.") || lower.contains("doi.org/") || lower.contains("pubmed.")
+                || lower.contains("arxiv.org/") || lower.contains("ncbi.nlm.nih.gov/")
+                || lower.contains("journals.") || lower.contains("journal.");
+    }
+
+    private String extractGoogleMapsLocation(String url) {
+        try {
+            URI uri = URI.create(addScheme(url));
+            String host = uri.getHost() == null ? "" : uri.getHost().toLowerCase(Locale.ROOT);
+            String path = uri.getPath() == null ? "" : uri.getPath().toLowerCase(Locale.ROOT);
+            if (!(host.endsWith("google.com") && path.contains("/maps/"))) return null;
+            String query = uri.getRawQuery();
+            if (query == null) return null;
+            for (String param : query.split("&")) {
+                String[] parts = param.split("=", 2);
+                if (parts.length == 2 && parts[0].equalsIgnoreCase("query")) {
+                    String value = URLDecoder.decode(parts[1], StandardCharsets.UTF_8).trim();
+                    return value.isBlank() ? null : value;
+                }
+            }
+        } catch (IllegalArgumentException ignored) {
+            // Invalid URLs stay reviewable as source data and must not break reconstruction.
+        }
+        return null;
     }
 
     private String removeBullet(String line) { return line.replaceFirst("^\\s*(?:[-*•▪◦]+)\\s+", "").trim(); }
