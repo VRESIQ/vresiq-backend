@@ -230,6 +230,8 @@ public class Resume {
         private String subtitle;
         private String date;
         private String description;
+        /** Optional relevant URL (internship certificate/page, training certificate/course). */
+        private String url;
         private String authors;
         @JsonProperty("abstract")
         private String abstractText;
