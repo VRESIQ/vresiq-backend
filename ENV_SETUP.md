@@ -12,15 +12,15 @@ Spring Boot maps standard system environment variables directly to its propertie
 | :--- | :---: | :--- | :--- |
 | `JWT_SECRET` | **Yes** | `dnhFcThkMk45bEpXcjN...` | A secure, high-entropy Base64-encoded string used to sign and verify JWT authorization tokens. |
 | `MONGO_URI` | **Yes** | `mongodb://localhost:27017/vresiq` | Connection URI pointing to the MongoDB instance or cluster. |
-| `SMTP_HOST` | **Yes** | `smtp-relay.brevo.com` | Outbound mail server hostname. |
-| `SMTP_PORT` | **Yes** | `587` | Outbound mail server SMTP port (typically 587 for TLS). |
-| `SMTP_USER` | **Yes** | `user@smtp.brevo.com` | Brevo SMTP account email or username. |
-| `SMTP_PASS` | **Yes** | `xsmtpsib-...` | Brevo SMTP authorization master password or API key. |
+| `VRESIQ_MAIL_USERNAME` or `MAIL_USERNAME` | SMTP only | Brevo SMTP username | SMTP account username (only required when `BREVO_API_KEY` is not set). |
+| `VRESIQ_MAIL_PASSWORD` or `MAIL_PASSWORD` | SMTP only | Secret value | SMTP password (only required when `BREVO_API_KEY` is not set). It is never used as an HTTP API key. |
+| `BREVO_API_KEY` | Optional | Secret value | Dedicated Brevo API key; when present, email uses Brevo's HTTPS API instead of SMTP. |
+| `BREVO_WEBHOOK_TOKEN` | Optional for delivery events | Secret value | Shared token configured on Brevo's transactional webhook to record delivered and bounce events. |
 | `CLOUDINARY_URL` | **Yes** | `cloudinary://key:sec@cloud` | Connection URL for storing user profile avatars securely on the cloud. |
 | `RAZORPAY_KEY_ID` | **Yes** | `rzp_test_your_key` | Razorpay public key ID. |
 | `RAZORPAY_KEY_SECRET`| **Yes** | `your_razorpay_secret` | Razorpay private API key secret. |
 | `GEMINI_API_KEY` | **Yes** | `sk-or-v1-your_openrouter_key`| OpenAI-compatible endpoint key (OpenRouter/Gemini API key) for AI text updates. |
-| `MAIL_FROM` | No | `admin@vresiq.app` | Outbound sender address visible in transactional verification emails. |
+| `MAIL_FROM` | No | `admin@vresiq.app` | Outbound sender address visible in transactional emails. |
 
 ---
 
@@ -36,10 +36,9 @@ Spring Boot maps standard system environment variables directly to its propertie
      ```powershell
      $env:JWT_SECRET="generate_a_secure_base64_string"
      $env:MONGO_URI="mongodb://localhost:27017/vresiq"
-     $env:SMTP_HOST="smtp-relay.brevo.com"
-     $env:SMTP_PORT="587"
-     $env:SMTP_USER="your_brevo_user"
-     $env:SMTP_PASS="your_brevo_password"
+     $env:VRESIQ_MAIL_USERNAME="your_brevo_smtp_username"
+     $env:VRESIQ_MAIL_PASSWORD="your_brevo_smtp_password"
+     # Or configure BREVO_API_KEY with a dedicated Brevo API key.
      $env:CLOUDINARY_URL="cloudinary://your_cloudinary_url"
      $env:RAZORPAY_KEY_ID="rzp_test_key"
      $env:RAZORPAY_KEY_SECRET="rzp_secret"

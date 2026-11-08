@@ -77,6 +77,7 @@ public class SecurityConfig {
                                 "/api/auth/providers",
                                 "/api/verify/**",
                                 "/api/payment/webhook",
+                                "/api/webhooks/brevo/transactional-email",
                                 "/actuator/**",
                                 "/login/oauth2/code/**",
                                 "/oauth2/authorization/**"

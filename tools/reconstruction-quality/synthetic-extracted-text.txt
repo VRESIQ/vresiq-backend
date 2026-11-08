@@ -1,0 +1,23 @@
+Morgan Example
+morgan@example.test | +1 416 555 0101
+https://morgan.example.test
+SUMMARY
+Product engineer with 12 years of experience building reliable systems.
+EXPERIENCE
+Senior Engineer | Northstar Systems | Jan 2020 - Present
+- Led migration of 11 services to a shared platform.
+- Reduced build time by 32 percent.
+EDUCATION
+BSc Computer Science | Guelph University | 2010 - 2014
+PROJECTS
+Maple Analytics
+- Built a regional analytics platform.
+CERTIFICATIONS
+Cloud Architect, Northstar Institute, 2021
+PUBLICATIONS
+Reliable Streams in Production, Journal of Systems, 2022
+SKILLS
+Java, Kubernetes, Cloud Architecture
+LANGUAGES
+English (Fluent)
+https://github.com/morgan-example

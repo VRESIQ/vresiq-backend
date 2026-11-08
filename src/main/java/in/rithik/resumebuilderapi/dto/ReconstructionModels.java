@@ -23,6 +23,7 @@ public class ReconstructionModels {
         private String detectedRole;
         private String recommendedTemplate;
         private List<String> unclassifiedContent;
+        private List<String> warnings;
         private List<PipelineStageTrace> stages;
         private Map<String, Double> confidenceReport;
         private List<ExplainabilityRecord> explainabilityRecords;

@@ -1,0 +1,92 @@
+{
+  "userId" : null,
+  "title" : null,
+  "thumbnailLink" : null,
+  "template" : null,
+  "fontPairing" : null,
+  "decoratives" : null,
+  "profileInfo" : {
+    "fullName" : "Morgan Example",
+    "designation" : null,
+    "summary" : "Product engineer with 12 years of experience building reliable systems.",
+    "targetRole" : null,
+    "ProfilePreviewUrl" : null
+  },
+  "contactInfo" : {
+    "email" : "morgan@example.test",
+    "phone" : "+1 416 555 0101",
+    "location" : null,
+    "linkedIn" : null,
+    "github" : "https://github.com/morgan-example",
+    "website" : "https://morgan.example.test",
+    "leetCode" : null,
+    "hackerRank" : null
+  },
+  "workExperience" : [ {
+    "company" : "Northstar Systems",
+    "role" : "Senior Engineer",
+    "startDate" : "Jan 2020",
+    "endDate" : "Present",
+    "description" : "- Led migration of 11 services to a shared platform.\n- Reduced build time by 32 percent.",
+    "location" : null
+  } ],
+  "education" : [ {
+    "degree" : "BSc Computer Science",
+    "institution" : "Guelph University",
+    "startDate" : "2010",
+    "endDate" : "2014",
+    "location" : null,
+    "gpa" : null,
+    "description" : null
+  } ],
+  "skills" : [ {
+    "name" : "Java",
+    "progress" : null
+  }, {
+    "name" : "Kubernetes",
+    "progress" : null
+  }, {
+    "name" : "Cloud Architecture",
+    "progress" : null
+  } ],
+  "projects" : [ {
+    "title" : "Maple Analytics",
+    "description" : null,
+    "github" : null,
+    "liveDemo" : null
+  }, {
+    "title" : "Built a regional analytics platform.",
+    "description" : null,
+    "github" : null,
+    "liveDemo" : null
+  } ],
+  "certifications" : [ {
+    "title" : "Cloud Architect, Northstar Institute, 2021",
+    "issuer" : null,
+    "year" : null,
+    "certificateUrl" : null
+  } ],
+  "languages" : [ {
+    "name" : "English (Fluent)",
+    "progress" : null
+  } ],
+  "interests" : null,
+  "customSections" : {
+    "publications" : [ {
+      "title" : "Reliable Streams in Production, Journal of Systems, 2022",
+      "subtitle" : null,
+      "date" : null,
+      "description" : null,
+      "url" : null,
+      "authors" : null,
+      "paperUrl" : null,
+      "abstractAuthors" : null,
+      "abstract" : null
+    } ]
+  },
+  "lastAtsScore" : null,
+  "lastAtsCategory" : null,
+  "createdAt" : null,
+  "updatedAt" : null,
+  "_id" : null
+}

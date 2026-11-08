@@ -20,13 +20,13 @@ Set these before starting the backend:
 7. `CLOUD_NAME`
 8. `CLOUD_KEY`
 9. `CLOUD_SECRET`
-10. One mail username variable:
-    - `VRESIQ_MAIL_USERNAME` or `MAIL_USERNAME`
-11. One mail password variable:
-    - `VRESIQ_MAIL_PASSWORD` or `MAIL_PASSWORD`
+10. One transactional email transport:
+    - `BREVO_API_KEY` (dedicated Brevo HTTP API key), or
+    - both `VRESIQ_MAIL_USERNAME`/`MAIL_USERNAME` and `VRESIQ_MAIL_PASSWORD`/`MAIL_PASSWORD` (Brevo SMTP credentials).
 
 Optional but recommended:
 1. `MAIL_FROM`
+2. `BREVO_WEBHOOK_TOKEN` when using Brevo transactional delivery webhooks. Configure the webhook to POST to `/api/webhooks/brevo/transactional-email` and send this value in the `X-VResIQ-Brevo-Token` header.
 2. `AI_API_KEY` and/or `GEMINI_API_KEY`
 3. `SEED_ADMIN_EMAIL`
 4. `SEED_ADMIN_PASSWORD`
@@ -67,7 +67,10 @@ Environment=CLOUD_NAME=<cloudinary_cloud_name>
 Environment=CLOUD_KEY=<cloudinary_api_key>
 Environment=CLOUD_SECRET=<cloudinary_api_secret>
 Environment=VRESIQ_MAIL_USERNAME=<smtp_username>
-Environment=VRESIQ_MAIL_PASSWORD=<smtp_password_or_api_key>
+Environment=VRESIQ_MAIL_PASSWORD=<smtp_password>
+# Optional dedicated Brevo HTTP API key; this is distinct from the SMTP password.
+Environment=BREVO_API_KEY=<brevo_api_key>
+Environment=BREVO_WEBHOOK_TOKEN=<random_shared_webhook_token>
 Environment=MAIL_FROM=noreply@vresiq.com
 Environment=AI_API_KEY=<provider_api_key>
 
@@ -83,3 +86,4 @@ WantedBy=multi-user.target
 3. Verify payment flow:
    - `POST /api/payment/create-order` then `POST /api/payment/verify`.
 4. Verify Cloudinary upload path through profile/image flow.
+5. After sending a controlled premium-upgrade email, verify the Brevo transaction log and a `delivered` webhook event. HTTP acceptance alone does not prove delivery.

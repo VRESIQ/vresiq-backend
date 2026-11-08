@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import org.springframework.data.annotation.CreatedDate;
 import org.springframework.data.annotation.LastModifiedDate;
 import org.springframework.data.mongodb.core.mapping.Document;
+import org.springframework.data.mongodb.core.index.CompoundIndex;
 
 import java.time.LocalDateTime;
 @Data
@@ -14,6 +15,7 @@ import java.time.LocalDateTime;
 @NoArgsConstructor
 @Builder
 @Document(collection = "users")
+@CompoundIndex(name = "premium_email_retry_idx", def = "{'premiumUpgradeEmailStatus': 1, 'premiumUpgradeEmailNextAttemptAt': 1}")
 public class User {
     @org.springframework.data.annotation.Id
     @com.fasterxml.jackson.annotation.JsonProperty("_id")
@@ -61,5 +63,37 @@ public class User {
     private LocalDateTime createdAt;
     @LastModifiedDate
     private LocalDateTime updatedAt;
+
+    // Embedded outbox state: storing it with the plan makes the upgrade and
+    // notification request a single MongoDB document update.
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private String premiumUpgradeEmailNotificationId;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private String premiumUpgradeEmailStatus;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private LocalDateTime premiumUpgradeEmailActivatedAt;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private Integer premiumUpgradeEmailAttempts;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private LocalDateTime premiumUpgradeEmailNextAttemptAt;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private LocalDateTime premiumUpgradeEmailLastAttemptAt;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private LocalDateTime premiumUpgradeEmailLeaseUntil;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private LocalDateTime premiumUpgradeEmailAcceptedAt;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private LocalDateTime premiumUpgradeEmailDeliveryEventAt;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private String premiumUpgradeEmailProvider;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private String premiumUpgradeEmailProviderMessageId;
+    @com.fasterxml.jackson.annotation.JsonIgnore
+    private String premiumUpgradeEmailFailureCode;
+
+    @com.fasterxml.jackson.annotation.JsonProperty("premiumEmailNotificationStatus")
+    public String premiumEmailNotificationStatus() {
+        return premiumUpgradeEmailStatus;
+    }
 
 }

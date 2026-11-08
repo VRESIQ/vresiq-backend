@@ -27,7 +27,8 @@ public class ResumeReconstructionController {
             @RequestParam("file") MultipartFile file,
             @RequestParam(value = "profile", defaultValue = "PROFESSIONAL") String profile) {
         
-        log.info("Admin Resume Reconstruction - Ingesting file: {}, profile: {}", file.getOriginalFilename(), profile);
+        // File names can contain personal information; log only safe request metadata.
+        log.info("Admin resume reconstruction upload received; bytes={}, contentType={}", file.getSize(), file.getContentType());
 
         // Security: file size limit (10MB)
         if (file.getSize() > 10 * 1024 * 1024) {
@@ -46,7 +47,7 @@ public class ResumeReconstructionController {
             ReconstructionResponse response = pipeline.execute(file.getInputStream(), mimeType, profile);
             return ResponseEntity.ok(response);
         } catch (IOException e) {
-            log.error("Failed to read file input stream: {}", e.getMessage());
+            log.error("Failed to read reconstruction upload stream; exceptionType={}", e.getClass().getSimpleName());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
         }
     }
@@ -66,8 +67,8 @@ public class ResumeReconstructionController {
             String enhanced = aiService.rewriteContent(userId, bulletText, tone);
             return ResponseEntity.ok(Map.of("enhancedText", enhanced));
         } catch (Exception e) {
-            log.error("Failed to enhance bullet: {}", e.getMessage());
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", e.getMessage()));
+            log.error("Failed to enhance bullet; exceptionType={}", e.getClass().getSimpleName());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of("error", "Unable to enhance bullet text."));
         }
     }
 }

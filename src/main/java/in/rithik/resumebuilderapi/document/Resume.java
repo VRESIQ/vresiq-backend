@@ -120,7 +120,7 @@ public class Resume {
     public static class ProfileInfo{
         @JsonProperty("ProfilePreviewUrl")
         @JsonAlias("profilePreviewUrl")
-        private String ProfilePreviewUrl;
+        private String profilePreviewUrl;
         private String fullName;
         private String designation;
         private String summary;

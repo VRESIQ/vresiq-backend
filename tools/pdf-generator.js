@@ -96,6 +96,9 @@ const resolveBrowserExecutable = async () => {
     await page.evaluateHandle('document.fonts.ready');
 
     console.log('Starting PDF generation with Puppeteer...');
+    const footerTemplate = isFreePlan
+      ? '<div style="width:100%;text-align:center;font-family:Arial,sans-serif;font-size:8px;font-weight:400;color:#999;opacity:.65;">Made with VRESIQ</div>'
+      : '<div></div>';
     if (isFreePlan) {
       console.log('✓ Footer Template ENABLED - Watermark "Made with VRESIQ" will appear on every page');
       console.log('  Font: 8px, Color: #999999, Opacity: 0.35');
@@ -111,7 +114,7 @@ const resolveBrowserExecutable = async () => {
       preferCSSPageSize: false,    // MUST be false: when true, Puppeteer ignores margin:{} and footerTemplate gets 0 space
       displayHeaderFooter: true,
       headerTemplate: '<span></span>',
-      footerTemplate: '<div></div>',  // Footer template not used - watermark is embedded in HTML via CSS positioning
+      footerTemplate,
       margin: {
         top: '40px',
         bottom: '45px',   // Increased from 36px to ensure footer template has adequate space
