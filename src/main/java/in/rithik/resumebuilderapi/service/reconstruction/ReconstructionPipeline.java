@@ -4,13 +4,16 @@ import in.rithik.resumebuilderapi.document.Resume;
 import in.rithik.resumebuilderapi.dto.ReconstructionModels.ExplainabilityRecord;
 import in.rithik.resumebuilderapi.dto.ReconstructionModels.PipelineStageTrace;
 import in.rithik.resumebuilderapi.dto.ReconstructionModels.QualityGateReport;
+import in.rithik.resumebuilderapi.dto.AtsIntelligenceModels.SourceAtsReport;
 import in.rithik.resumebuilderapi.dto.ReconstructionModels.ReconstructionResponse;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -24,9 +27,18 @@ public class ReconstructionPipeline {
     private final List<ReconstructionPlugin> plugins;
     private final DeterministicParser parser;
     private final ReconstructionNormalizer normalizer;
+    private final AtsIntelligenceService atsIntelligence;
 
     public ReconstructionResponse execute(InputStream fileStream, String mimeType, String profileName) {
         long startTime = System.currentTimeMillis();
+        byte[] documentBytes;
+        try {
+            // Read once so the same bytes can serve text extraction, portrait extraction and
+            // the source-level ATS analysis without re-reading the upload stream.
+            documentBytes = fileStream.readAllBytes();
+        } catch (Exception exception) {
+            throw new IllegalStateException("Document could not be read", exception);
+        }
         List<PipelineStageTrace> traces = new ArrayList<>();
         List<ExplainabilityRecord> explainabilityRecords = new ArrayList<>();
         List<String> warnings = new ArrayList<>();
@@ -38,7 +50,7 @@ public class ReconstructionPipeline {
 
         String rawText;
         try {
-            rawText = matchedPlugin.extractText(fileStream);
+            rawText = matchedPlugin.extractText(new ByteArrayInputStream(documentBytes));
             if (rawText == null) rawText = "";
             traces.add(PipelineStageTrace.builder().name("Document Ingestion").status(rawText.isBlank() ? "WARNING" : "SUCCESS")
                     .durationMs(System.currentTimeMillis() - stepStart)
@@ -52,6 +64,20 @@ public class ReconstructionPipeline {
         }
 
         stepStart = System.currentTimeMillis();
+        byte[] portraitBytes = null;
+        try {
+            portraitBytes = matchedPlugin.extractPortrait(new ByteArrayInputStream(documentBytes));
+        } catch (Exception exception) {
+            log.warn("Portrait extraction failed; mimeType={}, exceptionType={}", mimeType, exception.getClass().getSimpleName());
+        }
+        traces.add(PipelineStageTrace.builder().name("Portrait Extraction")
+                .status(portraitBytes != null && portraitBytes.length > 0 ? "SUCCESS" : "NOT_AVAILABLE")
+                .durationMs(System.currentTimeMillis() - stepStart)
+                .detail(portraitBytes != null && portraitBytes.length > 0
+                        ? "Embedded source image detected and attached for the candidate to confirm."
+                        : "No embedded portrait image was found; a manual photo upload remains available.").build());
+
+        stepStart = System.currentTimeMillis();
         DeterministicParser.ParseResult parseResult = parser.parseWithDiagnostics(rawText);
         Resume resume = parseResult.getResume();
         unclassifiedContent = parseResult.getUnclassifiedContent();
@@ -59,6 +85,17 @@ public class ReconstructionPipeline {
         traces.add(PipelineStageTrace.builder().name("Deterministic Parsing").status(rawText.isBlank() ? "WARNING" : "SUCCESS")
                 .durationMs(System.currentTimeMillis() - stepStart)
                 .detail("Parsed supported sections and retained uncertain source lines for human review.").build());
+
+        // Attach the extracted portrait without inventing one. The candidate confirms or replaces it.
+        if (portraitBytes != null && portraitBytes.length > 0) {
+            if (resume.getProfileInfo() == null) {
+                resume.setProfileInfo(Resume.ProfileInfo.builder().build());
+            }
+            resume.getProfileInfo().setProfilePreviewUrl("data:image/png;base64," + Base64.getEncoder().encodeToString(portraitBytes));
+            warnings.add("A portrait image was found in the uploaded file and attached to the profile. Confirm it is the candidate's photo, replace it, or remove it before exporting.");
+        } else {
+            warnings.add("No portrait image could be read from the uploaded file. If the original resume has a photo, upload it manually in the Studio.");
+        }
 
         stepStart = System.currentTimeMillis();
         warnings.addAll(normalizer.normalize(resume));
@@ -104,6 +141,20 @@ public class ReconstructionPipeline {
                 .durationMs(System.currentTimeMillis() - stepStart)
                 .detail("Checked section presence, contact presence, and repeated headings; ATS status remains not run.").build());
 
+        SourceAtsReport sourceReport = null;
+        stepStart = System.currentTimeMillis();
+        try {
+            sourceReport = atsIntelligence.analyzeSource(rawText, resume);
+            traces.add(PipelineStageTrace.builder().name("Source ATS Analysis").status("SUCCESS")
+                    .durationMs(System.currentTimeMillis() - stepStart)
+                    .detail("Analysed the extracted file text only; draft scoring runs separately on the structured resume.").build());
+        } catch (RuntimeException exception) {
+            log.warn("Source ATS analysis failed; exceptionType={}", exception.getClass().getSimpleName());
+            traces.add(PipelineStageTrace.builder().name("Source ATS Analysis").status("FAILED")
+                    .durationMs(System.currentTimeMillis() - stepStart)
+                    .detail("Source report unavailable; reconstruction itself is unaffected.").build());
+        }
+
         return ReconstructionResponse.builder()
                 .schemaVersion(2)
                 .profile(profileName)
@@ -117,6 +168,7 @@ public class ReconstructionPipeline {
                 .confidenceReport(confidenceReport)
                 .explainabilityRecords(explainabilityRecords)
                 .qualityGates(qualityGates)
+                .sourceAtsReport(sourceReport)
                 .build();
     }
 

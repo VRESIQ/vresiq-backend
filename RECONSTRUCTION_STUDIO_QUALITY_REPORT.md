@@ -1,7 +1,74 @@
 # VResIQ Reconstruction Studio Quality Report
 
-**Scope:** Batch 4 extraction, classification, preservation, preview pagination, PDF export, and Studio workflow.  
-**Status:** The exact Canada PDF was validated through the backend pipeline, VResIQ preview, and Puppeteer exporter. Targeted fixes corrected several observed mapping and display defects. **Batch 4 acceptance is not complete:** both final exports still contain a blank third page, and the source portrait is not carried into the reconstructed resume.
+**Scope:** Batch 4 extraction, classification, preservation, preview pagination, PDF export, and Studio workflow; Batch 5 defects, portrait preservation and ATS intelligence.  
+**Status (after Batch 5):** The two Batch 4 acceptance defects are resolved. The Canada fixture now exports **2 pages in both free and premium** (previously 3, the last one blank), and the embedded portrait is extracted and rendered in the reconstructed resume. Draft-side ATS analysis, source-file analysis, field-linked diagnostics and approval-based job tailoring are implemented. See [Batch 5 update](#batch-5-update--canada-acceptance-defects-and-ats-intelligence) at the top of this document; the Batch 4 narrative below is retained unchanged as the historical record.
+
+---
+
+## Batch 5 update — Canada acceptance defects and ATS intelligence
+
+### Defect 1: unnecessary blank third page (fixed)
+
+**Cause.** Two independent sources of empty overhang, both in the export path:
+
+1. `.resume-preview` carries `min-height: 1056px` and `padding-bottom: 48px` for the on-screen sheet, plus per-section `margin-bottom: 22px`. Those values were serialized into the export document, where the PDF page margin already provides the bottom edge. Measured on the Canada draft, resume text ended at **1 913 px** while the laid-out box ended several dozen pixels later. Chromium paginates boxes, not text, so the remainder became a full sheet containing no resume text.
+2. The exporter derived nothing about content extent — it simply accepted however many pages Chromium produced.
+
+**Fix.**
+
+- `ResumeEditor.jsx` export stylesheet: `#resume-preview { min-height: 0; padding-bottom: 0; box-shadow: none }` plus `:last-child` margin/padding resets for the last section, item and direct child.
+- `ResumeReconstructionStudio.jsx` export stylesheet: the same reset (this was the exact path used by the Canada run).
+- `pdf-generator.js`: measures the lowest element that *directly owns text* (`textBottom`), computes `ceil((textBottom − 2) / 1011)` for Letter with the generator's own margins, and removes only trailing pages beyond that count, logging `✓ Removed N trailing page(s) with no resume content`. The 2 px tolerance absorbs rounding; a page whose last line genuinely spills is retained because its text is measured.
+
+**Evidence.**
+
+| Artifact | Page count | Page text |
+|---|---|---|
+| `after-fix-v5/before-free.pdf` (previous generator, same HTML) | **3** | pages 1–2 content, page 3 only the watermark footer |
+| `after-fix-v5/final-free.pdf` | **2** | 5 800 / 4 326 characters, no blank page |
+| `after-fix-v5/final-premium.pdf` | **2** | content only, 0 watermark occurrences |
+| `after-fix-v4/blank-before.pdf` → `blank-guard.pdf` (controlled fixture with 420 px empty overflow) | **2 → 1** | isolates the guard from resume content |
+
+### Defect 2: missing source portrait (fixed behind a documented limit)
+
+**Investigation.** `PDFBox` was used for text only. A direct resource inspection of `canada-tester.pdf` found exactly one embedded image: page 1, `96×96`, JPEG, ICCBased — the source portrait. Extraction was therefore technically possible; the Batch 4 claim that the format was unsupported was wrong.
+
+**Fix.** `ReconstructionPlugin.extractPortrait` (default `null`), implemented for PDF (largest page-1 bitmap between 48–3000 px with a 0.55–1.75 aspect ratio, re-encoded losslessly to PNG) and DOCX (first body picture meeting the same bounds). The pipeline reads the upload once, embeds the result as a `data:image/png` URI in `profileInfo.profilePreviewUrl`, and adds a review warning. `harvard_ats` — the reconstruction default — now renders a photo beside the name block **only when one exists**; text-only resumes are byte-identical to before.
+
+**Manual alternative.** The Studio shows the detected portrait with *Replace photo*, *Upload photo* (PNG/JPEG/WebP ≤ 3 MB) and *Remove*, so a vector or unsupported portrait can still be supplied.
+
+**Limit, stated plainly.** A photo drawn as vectors, split across tiles, or rasterised into the page background is not extractable; those return `null` and the UI falls back to manual upload. A `null` result means "not extractable", never "candidate has no photo".
+
+### ATS and tailoring
+
+`AtsIntelligenceService` produces three deterministic products, with no external model call and no writes:
+
+| Product | Checks |
+|---|---|
+| **Source report** (uploaded file, computed at upload) | email/phone/link presence, recognised canonical headings, >240-character lines (merged columns), page-number/footer furniture, duplicated lines, control-character extraction artifacts, thin text (scan/OCR), reversed parsed date ranges |
+| **Draft report** (structured resume) | the existing `RefineService` rules engine — missing fields, dates, description length, action verbs, metrics, passive voice, filler wording, keyword gap, template/photo/decorative parse risk — re-exposed for the unsaved draft with a `fieldPath` on every finding |
+| **Tailoring** (optional job description) | fixed skill lexicon + sentence-scoped required/preferred classification, evidence lookup in the candidate's own fields, coverage counts, and proposals of four kinds: surface an evidenced keyword, append an evidenced strengths sentence, strip a weak opener from a bullet, reorder the most relevant role first |
+
+Truthfulness rules, enforced in code and in tests: a keyword with no candidate evidence appears only in `unsupported` and can never reach a proposal; proposals quote the candidate's own text as `evidence`; nothing is applied until the user clicks accept; summary and reorder proposals are flagged `requiresConfirmation`; every accepted change can be undone and the whole draft can be reset to the original extraction.
+
+### Regression state after Batch 5
+
+| Check | Result |
+|---|---|
+| Backend tests (`mvnw.cmd -o -DforkCount=0 test`) | **27 run, 0 failures, 0 errors, 3 skipped** (the 3 skips are the pre-existing environment-dependent PDF tests) |
+| New ATS tests | 7/7 — missing-contact detection, empty-extraction handling, section→field mapping, draft field linking, no invented skills, evidence on keyword proposals, no-JD behaviour |
+| Frontend production build | `vite build` exit 0 |
+| Studio smoke test (`tools/batch5/studio-smoke.mjs`, stubbed API) | portrait rendered, draft score shown, 4 findings, field jump focuses `contactInfo.email`, keyword chips 1 present/2 missing, unsupported list shown, accept→undo round trip, JSON export contains `schemaVersion`/`resume` and no account data, **0 page errors** |
+| Canada free/premium watermark | premium 0 occurrences, free 2 (one per page — the blank page no longer receives one) |
+| Preview/export consistency | preview content order equals page 1→2 order; 0 horizontal overflow, 0 overlapping sections, duplicate link destinations 0 |
+| Performance (3 runs each, this machine) | pipeline incl. JVM start 2.50–2.64 s; Puppeteer export incl. browser launch 2.90–3.18 s |
+
+### Unresolved in this batch
+
+- TXT/paste import, DOCX export, typography micro-controls and LaTeX remain unimplemented (see `VRESIQ_RESUMEFOLD_FEATURE_GAP_ANALYSIS.md` §4 for feasibility).
+- The authenticated browser → controller transaction was not exercised: the Studio was driven with stubbed HTTP responses and the pipeline/Puppeteer were invoked directly on the same classes.
+- Performance is reported for three runs, not p50/p95 over a fixture corpus.
+- PDF source text still loses original bullet glyphs and merges organisation/location columns; the Batch 4 mitigation (ordered paragraph text, no manufactured bullets) is unchanged.
 
 ## Summary
 

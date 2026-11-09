@@ -40,6 +40,15 @@ public class DeterministicParser {
     private static final Pattern EDUCATION_MONTH = Pattern.compile("(?i)\\b(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|jun(?:e)?|jul(?:y)?|aug(?:ust)?|sep(?:tember)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\b");
     private static final Pattern VRESIQ_WATERMARK = Pattern.compile("(?i)^made with vresiq$");
 
+    /** Words that may appear lowercase inside a proper organization name. */
+    private static final Set<String> ORGANIZATION_CONNECTORS = Set.of(
+            "of", "and", "&", "the", "for", "at", "on", "in", "de", "du", "del", "la", "le", "und", "y", "e");
+
+    /** Sentence-opening verbs that mark a bullet rather than an organization name. */
+    private static final Set<String> ACTION_VERBS = Set.of(
+            "led", "ran", "built", "made", "drove", "grew", "cut", "set", "won", "owned", "wrote", "oversaw",
+            "hired", "taught", "brought", "kept", "held", "spent", "met");
+
     private static final Map<String, String> SECTION_ALIASES = new LinkedHashMap<>();
     static {
         addAliases("summary", "summary", "professional summary", "profile", "professional profile", "objective", "career objective", "about me");
@@ -273,8 +282,16 @@ public class DeterministicParser {
                 current.setEndDate(date.group(2).trim());
                 description = new StringBuilder();
             } else if (current != null) {
-                if (description.length() > 0) description.append('\n');
-                description.append(line);
+                if (current.getCompany() == null && description.length() == 0 && isStandaloneOrganizationLine(line)) {
+                    // The layout puts the employer on the first line after the role/date header.
+                    current.setCompany(line);
+                } else {
+                    if (current.getCompany() == null && description.length() == 0 && isAmbiguousOrganizationLine(line)) {
+                        unclassified.add("Possible organization line needs review: " + line);
+                    }
+                    if (description.length() > 0) description.append('\n');
+                    description.append(line);
+                }
             } else {
                 unclassified.add(line);
             }
@@ -284,6 +301,50 @@ public class DeterministicParser {
             items.add(current);
         }
         return new ParsedExperiences(items, unclassified);
+    }
+
+    /**
+     * Accepts a standalone organization line only when both the layout (first line after the header)
+     * and the shape (short proper-noun phrase, no dates, digits, bullets or sentence punctuation) agree.
+     * Anything ambiguous is left in the description untouched instead of being guessed into the company field.
+     */
+    private boolean isStandaloneOrganizationLine(String raw) {
+        String line = raw == null ? "" : raw.trim();
+        if (line.length() < 3 || line.length() > 80) return false;
+        if (!looksLikeProperNounPhrase(line, 8)) return false;
+        if (line.contains(",") || line.matches(".*[.!?;:].*")) return false;
+        return true;
+    }
+
+    /** Same shape as an organization, but not safe to map; surfaced as unclassified content for review. */
+    private boolean isAmbiguousOrganizationLine(String raw) {
+        String line = raw == null ? "" : raw.trim();
+        if (line.length() < 3 || line.length() > 120) return false;
+        if (!looksLikeProperNounPhrase(line, 12)) return false;
+        return !isStandaloneOrganizationLine(line);
+    }
+
+    private boolean looksLikeProperNounPhrase(String line, int maxWords) {
+        if (line.matches("^[\\u2022*\\-\u25aa\u00b7\u2013\u2014].*")) return false;
+        if (line.matches(".*\\d.*")) return false;
+        if (line.contains("@") || URL_PATTERN.matcher(line).find()) return false;
+        if (DATE_RANGE.matcher(line).find()) return false;
+        String[] words = line.split("\\s+");
+        if (words.length < 2 || words.length > maxWords) return false;
+        if (!Character.isUpperCase(words[0].charAt(0))) return false;
+        if (startsWithActionVerb(words[0])) return false;
+        long properWords = Arrays.stream(words)
+                .filter(word -> Character.isUpperCase(word.charAt(0))
+                        || ORGANIZATION_CONNECTORS.contains(word.toLowerCase(Locale.ROOT)))
+                .count();
+        return properWords * 5 >= words.length * 3;
+    }
+
+    private boolean startsWithActionVerb(String firstWord) {
+        String word = firstWord.replaceAll("[^A-Za-z]", "").toLowerCase(Locale.ROOT);
+        if (word.endsWith("ing")) return true;
+        if (word.endsWith("ed") && word.length() > 4) return true;
+        return ACTION_VERBS.contains(word);
     }
 
     private ParsedEducation parseEducation(List<String> lines) {

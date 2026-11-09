@@ -98,6 +98,32 @@ const resolveBrowserExecutable = async () => {
     // Ensure all web fonts are loaded completely before printing
     await page.evaluateHandle('document.fonts.ready');
 
+    // Measure the real extent of resume text so trailing whitespace cannot create a page.
+    // Chromium paginates the laid-out box model: a container's bottom padding or a last
+    // element's margin can spill a few pixels onto an extra sheet that contains no content.
+    // Only elements that directly own text are measured, so pure decoration is ignored.
+    const contentMetrics = await page.evaluate(() => {
+      const root = document.getElementById('resume-preview') || document.body;
+      let textBottom = 0;
+      const nodes = root.querySelectorAll('*');
+      for (const node of nodes) {
+        const ownsText = Array.from(node.childNodes).some(
+          (child) => child.nodeType === 3 && child.textContent.trim().length > 0
+        );
+        if (!ownsText) continue;
+        const rect = node.getBoundingClientRect();
+        if (rect.height <= 0) continue;
+        textBottom = Math.max(textBottom, rect.bottom + window.scrollY);
+      }
+      if (textBottom === 0) textBottom = root.getBoundingClientRect().height;
+      return { textBottom };
+    });
+
+    const pageHeightPx = Math.round(11 * 96); // Letter height at 96 DPI = 1056px
+    const printableHeightPx = pageHeightPx - 0 /* top margin */ - 45 /* bottom margin */;
+    const contentPages = Math.max(1, Math.ceil((contentMetrics.textBottom - 2) / printableHeightPx));
+    console.log(`Content extent: ${Math.round(contentMetrics.textBottom)}px; printable page: ${printableHeightPx}px; expected pages: ${contentPages}`);
+
     console.log('Starting PDF generation with Puppeteer...');
     if (isFreePlan) {
       console.log('✓ Footer Template ENABLED - Watermark "Made with VRESIQ" will appear on every page');
@@ -142,12 +168,22 @@ const resolveBrowserExecutable = async () => {
       }
     });
 
-    // URGENT: Apply standardized PDF document metadata
+    // Apply standardized PDF document metadata, and drop any trailing sheet that carries
+    // no resume text (Chromium pads the last page with empty structure in some layouts).
     try {
       const { PDFDocument } = require('pdf-lib');
       const pdfBytes = fs.readFileSync(outputPdfPath);
       const pdfDoc = await PDFDocument.load(pdfBytes, { updateMetadata: false });
-      
+
+      let removed = 0;
+      while (pdfDoc.getPageCount() > contentPages && pdfDoc.getPageCount() > 1) {
+        pdfDoc.removePage(pdfDoc.getPageCount() - 1);
+        removed++;
+      }
+      if (removed > 0) {
+        console.log(`✓ Removed ${removed} trailing page(s) with no resume content`);
+      }
+
       const now = new Date();
       pdfDoc.setTitle('Resume');
       pdfDoc.setAuthor('VRESIQ');

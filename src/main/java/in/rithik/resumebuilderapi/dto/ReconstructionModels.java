@@ -1,6 +1,7 @@
 package in.rithik.resumebuilderapi.dto;
 
 import in.rithik.resumebuilderapi.document.Resume;
+import in.rithik.resumebuilderapi.dto.AtsIntelligenceModels.SourceAtsReport;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
 import lombok.Data;
@@ -28,6 +29,11 @@ public class ReconstructionModels {
         private Map<String, Double> confidenceReport;
         private List<ExplainabilityRecord> explainabilityRecords;
         private QualityGateReport qualityGates;
+        /**
+         * Deterministic analysis of the uploaded file's extracted text. Computed at upload time
+         * so the raw document text never has to leave the server for analysis.
+         */
+        private SourceAtsReport sourceAtsReport;
     }
 
     @Data

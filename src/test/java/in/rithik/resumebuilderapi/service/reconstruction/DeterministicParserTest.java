@@ -77,6 +77,72 @@ class DeterministicParserTest {
     }
 
     @Test
+    void mapsAnEmployerThatSitsOnTheLineDirectlyAfterTheRoleAndDates() {
+        // Mirrors the Canada fixture layout: role/date header, employer on its own line, then bullets.
+        DeterministicParser.ParseResult result = parser.parseWithDiagnostics("""
+                Abhilash Tester
+                SUMMARY
+                Analyst with nine years of data experience.
+                EXPERIENCE
+                Software Developer Analyst Apr 2021 – Oct 2025
+                IQVIA India
+                Transformed complex healthcare data into actionable insights.
+                Healthcare Systems Data Analyst May 2016 – May 2018
+                Clinical Biometrics Solutions Pvt Ltd India
+                Collected and integrated large healthcare databases.
+                """);
+
+        List<Resume.WorkExperience> experience = result.getResume().getWorkExperience();
+        assertEquals(2, experience.size());
+        assertEquals("Software Developer Analyst", experience.get(0).getRole());
+        assertEquals("IQVIA India", experience.get(0).getCompany());
+        assertEquals("Apr 2021", experience.get(0).getStartDate());
+        assertEquals("Oct 2025", experience.get(0).getEndDate());
+        assertEquals("Transformed complex healthcare data into actionable insights.", experience.get(0).getDescription(),
+                "the employer line must move into company without being duplicated in the description");
+        assertEquals("Clinical Biometrics Solutions Pvt Ltd India", experience.get(1).getCompany());
+        assertEquals("May 2016", experience.get(1).getStartDate());
+        assertTrue(experience.get(1).getDescription().contains("Collected and integrated"));
+        assertFalse(experience.get(1).getDescription().contains("Clinical Biometrics"),
+                "the organization line must not also appear as bullet text");
+    }
+
+    @Test
+    void doesNotMoveAmbiguousHeaderLinesIntoTheCompanyField() {
+        DeterministicParser.ParseResult result = parser.parseWithDiagnostics("""
+                Casey Tester
+                EXPERIENCE
+                Data Analyst 2020 - 2022
+                Oshawa, Canada
+                Managed Analytics Team
+                Built dashboards for regional sales teams.
+                """);
+
+        Resume.WorkExperience item = result.getResume().getWorkExperience().get(0);
+        assertNull(item.getCompany(), "an ambiguous line must never be guessed into company");
+        assertTrue(item.getDescription().contains("Oshawa, Canada"));
+        assertTrue(item.getDescription().contains("Managed Analytics Team"));
+        assertTrue(item.getDescription().contains("Built dashboards"));
+        assertTrue(result.getUnclassifiedContent().stream()
+                        .anyMatch(line -> line.contains("Possible organization line needs review") && line.contains("Oshawa, Canada")),
+                "an organization-shaped but ambiguous line must be surfaced for user review");
+    }
+
+    @Test
+    void keepsInlineCompanyHeadersWorkingWithoutTakingBulletText() {
+        DeterministicParser.ParseResult result = parser.parseWithDiagnostics("""
+                Casey Tester
+                EXPERIENCE
+                Senior Engineer | Northstar Systems | Jan 2020 - Present
+                Built the billing platform.
+                """);
+
+        Resume.WorkExperience item = result.getResume().getWorkExperience().get(0);
+        assertEquals("Northstar Systems", item.getCompany());
+        assertEquals("Built the billing platform.", item.getDescription());
+    }
+
+    @Test
     void combinesRepeatedSectionContentAndFlagsItForReview() {
         DeterministicParser.ParseResult result = parser.parseWithDiagnostics("""
                 Casey Example

@@ -1,6 +1,9 @@
 package in.rithik.resumebuilderapi.controller;
 
+import in.rithik.resumebuilderapi.dto.AtsIntelligenceModels.AtsAnalysisRequest;
+import in.rithik.resumebuilderapi.dto.AtsIntelligenceModels.AtsAnalysisResponse;
 import in.rithik.resumebuilderapi.dto.ReconstructionModels.ReconstructionResponse;
+import in.rithik.resumebuilderapi.service.reconstruction.AtsIntelligenceService;
 import in.rithik.resumebuilderapi.service.reconstruction.ReconstructionPipeline;
 import in.rithik.resumebuilderapi.service.AiService;
 import lombok.RequiredArgsConstructor;
@@ -20,6 +23,7 @@ import java.util.Map;
 public class ResumeReconstructionController {
 
     private final ReconstructionPipeline pipeline;
+    private final AtsIntelligenceService atsIntelligence;
     private final AiService aiService;
 
     @PostMapping("/upload")
@@ -49,6 +53,36 @@ public class ResumeReconstructionController {
         } catch (IOException e) {
             log.error("Failed to read reconstruction upload stream; exceptionType={}", e.getClass().getSimpleName());
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).build();
+        }
+    }
+
+    /**
+     * Draft-side ATS analysis plus optional job-description tailoring.
+     *
+     * <p>Deterministic only: no external model is called, nothing is written to the database,
+     * and every tailoring item is a proposal the candidate must accept or reject.
+     */
+    @PostMapping("/analyze")
+    public ResponseEntity<?> analyze(@RequestBody AtsAnalysisRequest request) {
+        if (request == null || request.getResume() == null) {
+            return ResponseEntity.badRequest().body(Map.of("error", "A resume draft is required for analysis."));
+        }
+        long started = System.currentTimeMillis();
+        try {
+            var draft = atsIntelligence.analyzeDraft(request.getResume());
+            var tailor = atsIntelligence.tailor(request.getResume(), request.getJobDescription());
+            log.info("Reconstruction ATS analysis completed; draftFindings={}, tailorAvailable={}",
+                    draft.getFindings() == null ? 0 : draft.getFindings().size(), tailor.isAvailable());
+            return ResponseEntity.ok(AtsAnalysisResponse.builder()
+                    .draft(draft)
+                    .tailor(tailor)
+                    .durationMs(System.currentTimeMillis() - started)
+                    .disclaimer("These checks are deterministic, explainable heuristics. They do not reproduce any employer's proprietary screening system and do not predict hiring outcomes.")
+                    .build());
+        } catch (RuntimeException exception) {
+            log.error("Reconstruction ATS analysis failed; exceptionType={}", exception.getClass().getSimpleName());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .body(Map.of("error", "ATS analysis could not be completed for this draft."));
         }
     }
 
