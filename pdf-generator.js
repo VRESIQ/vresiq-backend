@@ -1,5 +1,6 @@
 const puppeteer = require('puppeteer');
 const fs = require('fs');
+const pdfParse = require('pdf-parse');
 
 const resolveBrowserExecutable = async () => {
   const configuredExecutablePath = process.env.PUPPETEER_EXECUTABLE_PATH?.trim();
@@ -120,7 +121,7 @@ const resolveBrowserExecutable = async () => {
     });
 
     const pageHeightPx = Math.round(11 * 96); // Letter height at 96 DPI = 1056px
-    const printableHeightPx = pageHeightPx - 0 /* top margin */ - 45 /* bottom margin */;
+    const printableHeightPx = pageHeightPx - 0 /* top margin */ - 36 /* bottom margin */;
     const contentPages = Math.max(1, Math.ceil((contentMetrics.textBottom - 2) / printableHeightPx));
     console.log(`Content extent: ${Math.round(contentMetrics.textBottom)}px; printable page: ${printableHeightPx}px; expected pages: ${contentPages}`);
 
@@ -162,26 +163,44 @@ const resolveBrowserExecutable = async () => {
       ` : '<div></div>',
       margin: {
         top: '0px',
-        bottom: '45px',   // Increased from 36px to ensure footer template has adequate space
+        bottom: '36px',   // Reserve enough room for the 8px watermark footer on both tiers
         left: '0px',
         right: '0px'
       }
     });
 
-    // Apply standardized PDF document metadata, and drop any trailing sheet that carries
-    // no resume text (Chromium pads the last page with empty structure in some layouts).
+    // Apply standardized PDF document metadata, and remove only a trailing sheet that is
+    // verified to have no resume text. The continuous-layout height estimate can be lower
+    // than Chromium's fragmented page count when headings stay with their first item.
     try {
       const { PDFDocument } = require('pdf-lib');
       const pdfBytes = fs.readFileSync(outputPdfPath);
       const pdfDoc = await PDFDocument.load(pdfBytes, { updateMetadata: false });
 
+      const pageTexts = [];
+      await pdfParse(pdfBytes, {
+        pagerender: async (pageData) => {
+          const content = await pageData.getTextContent();
+          const pageText = content.items.map((item) => item.str || '').join(' ');
+          pageTexts.push(pageText);
+          return pageText;
+        }
+      });
+
       let removed = 0;
-      while (pdfDoc.getPageCount() > contentPages && pdfDoc.getPageCount() > 1) {
-        pdfDoc.removePage(pdfDoc.getPageCount() - 1);
+      while (pdfDoc.getPageCount() > 1 && pageTexts.length === pdfDoc.getPageCount()) {
+        const lastPageIndex = pdfDoc.getPageCount() - 1;
+        const resumeText = pageTexts[lastPageIndex]
+          .replace(/Made with VRESIQ/gi, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        if (resumeText.length > 0) break;
+        pdfDoc.removePage(lastPageIndex);
+        pageTexts.pop();
         removed++;
       }
       if (removed > 0) {
-        console.log(`✓ Removed ${removed} trailing page(s) with no resume content`);
+        console.log(`✓ Removed ${removed} trailing page(s) with no resume text`);
       }
 
       const now = new Date();
